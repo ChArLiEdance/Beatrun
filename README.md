@@ -164,6 +164,8 @@ Potential track metadata:
 
 Beatrun is currently at the project setup stage. The repository contains a minimal SwiftUI iOS app and the first version of the product plan.
 
+Project upload history is tracked in [CHANGELOG.md](CHANGELOG.md).
+
 ## Requirements
 
 - Xcode 26.4.1 or later recommended

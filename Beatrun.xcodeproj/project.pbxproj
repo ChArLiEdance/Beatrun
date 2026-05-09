@@ -11,6 +11,9 @@
 		BEA000000000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA000000000000000000012 /* ContentView.swift */; };
 		BEA000000000000000000003 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BEA000000000000000000013 /* Assets.xcassets */; };
 		BEA000000000000000000004 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BEA000000000000000000015 /* Preview Assets.xcassets */; };
+		BEA000000000000000000005 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA000000000000000000016 /* Models.swift */; };
+		BEA000000000000000000006 /* MetronomeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA000000000000000000017 /* MetronomeEngine.swift */; };
+		BEA000000000000000000007 /* BeatrunModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA000000000000000000018 /* BeatrunModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -19,6 +22,9 @@
 		BEA000000000000000000012 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		BEA000000000000000000013 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		BEA000000000000000000015 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		BEA000000000000000000016 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		BEA000000000000000000017 /* MetronomeEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeEngine.swift; sourceTree = "<group>"; };
+		BEA000000000000000000018 /* BeatrunModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeatrunModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -53,6 +59,9 @@
 			children = (
 				BEA000000000000000000011 /* BeatrunApp.swift */,
 				BEA000000000000000000012 /* ContentView.swift */,
+				BEA000000000000000000016 /* Models.swift */,
+				BEA000000000000000000017 /* MetronomeEngine.swift */,
+				BEA000000000000000000018 /* BeatrunModel.swift */,
 				BEA000000000000000000013 /* Assets.xcassets */,
 				BEA000000000000000000022 /* Preview Content */,
 			);
@@ -142,6 +151,9 @@
 			files = (
 				BEA000000000000000000001 /* BeatrunApp.swift in Sources */,
 				BEA000000000000000000002 /* ContentView.swift in Sources */,
+				BEA000000000000000000005 /* Models.swift in Sources */,
+				BEA000000000000000000006 /* MetronomeEngine.swift in Sources */,
+				BEA000000000000000000007 /* BeatrunModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
