@@ -25,6 +25,57 @@ enum VocalPreference: String, CaseIterable, Identifiable {
     }
 }
 
+enum MusicSource: String, Hashable {
+    case generatedPreview
+
+    var title: String {
+        switch self {
+        case .generatedPreview:
+            "Generated Preview"
+        }
+    }
+
+    var usageNote: String {
+        switch self {
+        case .generatedPreview:
+            "Local generated audio for prototype testing."
+        }
+    }
+}
+
+enum DiscoveryPhase: Equatable {
+    case ready
+    case searching
+    case analyzing
+    case failed(String)
+
+    var title: String {
+        switch self {
+        case .ready:
+            "Ready"
+        case .searching:
+            "Searching"
+        case .analyzing:
+            "Analyzing beats"
+        case .failed:
+            "Search failed"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .ready:
+            "checkmark.circle.fill"
+        case .searching:
+            "magnifyingglass"
+        case .analyzing:
+            "waveform"
+        case .failed:
+            "exclamationmark.triangle.fill"
+        }
+    }
+}
+
 struct RunningTrack: Identifiable, Hashable {
     let id = UUID()
     let title: String
@@ -34,6 +85,7 @@ struct RunningTrack: Identifiable, Hashable {
     let genre: String
     let energy: Int
     let beatConfidence: Double
+    let source: MusicSource = .generatedPreview
 
     func tempoDistance(to cadence: Int) -> Int {
         BeatAlignment.analyze(track: self, cadence: cadence).bpmDelta
@@ -175,5 +227,16 @@ struct MockMusicCatalog {
                 }
                 return $0.score > $1.score
             }
+    }
+}
+
+struct MusicDiscoveryService {
+    func discover(cadence: Int, preference: VocalPreference) async throws -> [TrackMatch] {
+        try await Task.sleep(for: .milliseconds(450))
+        try Task.checkCancellation()
+        let matches = MockMusicCatalog.recommendations(cadence: cadence, preference: preference)
+        try await Task.sleep(for: .milliseconds(350))
+        try Task.checkCancellation()
+        return matches
     }
 }

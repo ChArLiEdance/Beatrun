@@ -17,6 +17,9 @@ struct ContentView: View {
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Beatrun")
         }
+        .task {
+            model.discoverMusic()
+        }
     }
 
     private var cadencePanel: some View {
@@ -197,14 +200,36 @@ struct ContentView: View {
     private var recommendationsPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Recommended Tracks")
-                    .font(.headline)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Music Discovery")
+                        .font(.headline)
+
+                    Text("Generated preview provider")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
                 Spacer()
 
-                Text("\(model.recommendations.count) matches")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                Button {
+                    model.discoverMusic()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .frame(width: 34, height: 34)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityLabel("Search again")
+            }
+
+            DiscoveryStatusView(
+                phase: model.discoveryPhase,
+                message: model.discoveryMessage,
+                searchCount: model.searchCount,
+                matchCount: model.recommendations.count
+            )
+
+            if model.discoveryPhase == .searching || model.discoveryPhase == .analyzing {
+                ProgressView()
             }
 
             ForEach(model.recommendations) { match in
@@ -226,7 +251,7 @@ struct ContentView: View {
             Text("Prototype Scope")
                 .font(.headline)
 
-            FeatureStatusRow(icon: "music.note.list", title: "Music discovery", status: "Mock catalog")
+            FeatureStatusRow(icon: "music.note.list", title: "Music discovery", status: "Search prototype")
             FeatureStatusRow(icon: "metronome", title: "Metronome", status: "Generated click")
             FeatureStatusRow(icon: "waveform", title: "Beat alignment", status: "Prototype analysis")
             FeatureStatusRow(icon: "applewatch", title: "Apple Watch", status: "Future phase")
@@ -356,6 +381,72 @@ private struct BeatGrid: View {
     }
 }
 
+private struct DiscoveryStatusView: View {
+    let phase: DiscoveryPhase
+    let message: String
+    let searchCount: Int
+    let matchCount: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: phase.systemImage)
+                    .foregroundStyle(statusColor)
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(phase.title)
+                        .font(.subheadline.weight(.semibold))
+
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+
+            HStack(spacing: 10) {
+                statusPill(title: "Source", value: MusicSource.generatedPreview.title)
+                statusPill(title: "Matches", value: "\(matchCount)")
+                statusPill(title: "Searches", value: "\(searchCount)")
+            }
+
+            Text(MusicSource.generatedPreview.usageNote)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding(12)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private var statusColor: Color {
+        switch phase {
+        case .ready:
+            .green
+        case .searching, .analyzing:
+            .blue
+        case .failed:
+            .red
+        }
+    }
+
+    private func statusPill(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            Text(value)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 private struct TrackRow: View {
     let match: TrackMatch
     let isSelected: Bool
@@ -380,6 +471,10 @@ private struct TrackRow: View {
 
                     Text(match.alignment.mode.title)
                         .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+
+                    Text(match.track.source.title)
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
 

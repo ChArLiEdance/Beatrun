@@ -2,6 +2,19 @@
 
 All notable Beatrun uploads are recorded here.
 
+## 2026-05-10 - Music discovery prototype
+
+### Added
+
+- Added a music-discovery flow prototype with searching, beat-analysis, ready, and failure states.
+- Added a manual search-again action in the recommendations panel.
+- Added generated preview provider labels and usage notes so future licensed providers can fit the same UI.
+
+### Verified
+
+- Built successfully with `xcodebuild` for the iPhone 17 simulator.
+- Installed and launched successfully in the iPhone 17 simulator.
+
 ## 2026-05-09 - Beat alignment and generated backing loop
 
 ### Added
