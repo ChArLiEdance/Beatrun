@@ -95,6 +95,40 @@ struct ContentView: View {
                 .accessibilityLabel(model.metronome.isRunning ? "Stop metronome" : "Start metronome")
             }
 
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Label(model.metronome.audioStatus, systemImage: model.metronome.isRunning ? "speaker.wave.2.fill" : "speaker.wave.1")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(model.metronome.audioError == nil ? Color.secondary : Color.red)
+
+                    Spacer()
+
+                    Text("Volume \(Int(model.metronome.volume * 100))%")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+
+                Slider(
+                    value: Binding(
+                        get: { model.metronome.volume },
+                        set: { model.metronome.setVolume($0) }
+                    ),
+                    in: 0...1,
+                    step: 0.05
+                )
+                .accessibilityLabel("Metronome volume")
+
+                if let audioError = model.metronome.audioError {
+                    Text(audioError)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+            .padding(12)
+            .background(Color(.secondarySystemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
             if let selectedMatch = model.selectedMatch {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(selectedMatch.track.title)
@@ -164,7 +198,7 @@ struct ContentView: View {
                 .font(.headline)
 
             FeatureStatusRow(icon: "music.note.list", title: "Music discovery", status: "Mock catalog")
-            FeatureStatusRow(icon: "metronome", title: "Metronome", status: "Local click")
+            FeatureStatusRow(icon: "metronome", title: "Metronome", status: "Generated click")
             FeatureStatusRow(icon: "waveform", title: "Beat alignment", status: "Simulated score")
             FeatureStatusRow(icon: "applewatch", title: "Apple Watch", status: "Future phase")
         }

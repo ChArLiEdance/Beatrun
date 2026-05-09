@@ -2,6 +2,22 @@
 
 All notable Beatrun uploads are recorded here.
 
+## 2026-05-09 - Metronome audio
+
+### Added
+
+- Added an AVFoundation-based metronome click generator.
+- Added metronome audio status and volume controls to the prototype UI.
+
+### Changed
+
+- Replaced silent beat counting with generated click audio for local prototype testing.
+
+### Verified
+
+- Built successfully with `xcodebuild` for the iPhone 17 simulator.
+- Installed and launched successfully in the iPhone 17 simulator.
+
 ## 2026-05-09
 
 ### Added
