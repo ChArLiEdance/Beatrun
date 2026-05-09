@@ -97,13 +97,36 @@ struct ContentView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
+                    Label(model.metronome.musicStatus, systemImage: "music.note")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(model.metronome.audioError == nil ? Color.secondary : Color.red)
+
+                    Spacer()
+
+                    Text("Music \(Int(model.metronome.musicVolume * 100))%")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+
+                Slider(
+                    value: Binding(
+                        get: { model.metronome.musicVolume },
+                        set: { model.metronome.setMusicVolume($0) }
+                    ),
+                    in: 0...1,
+                    step: 0.05
+                )
+                .accessibilityLabel("Generated music volume")
+
+                HStack {
                     Label(model.metronome.audioStatus, systemImage: model.metronome.isRunning ? "speaker.wave.2.fill" : "speaker.wave.1")
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(model.metronome.audioError == nil ? Color.secondary : Color.red)
 
                     Spacer()
 
-                    Text("Volume \(Int(model.metronome.volume * 100))%")
+                    Text("Click \(Int(model.metronome.volume * 100))%")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
@@ -117,7 +140,11 @@ struct ContentView: View {
                     in: 0...1,
                     step: 0.05
                 )
-                .accessibilityLabel("Metronome volume")
+                .accessibilityLabel("Metronome click volume")
+
+                Text("Generated backing loop for \(model.metronome.selectedTrackTitle)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 if let audioError = model.metronome.audioError {
                     Text(audioError)
@@ -138,13 +165,15 @@ struct ContentView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
-                    HStack(spacing: 12) {
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                         metricTile(title: "Track", value: "\(selectedMatch.track.bpm)", unit: "BPM")
+                        metricTile(title: "Mode", value: selectedMatch.alignment.mode.title, unit: "")
                         metricTile(title: "Match", value: "\(selectedMatch.score)", unit: "%")
                         metricTile(title: "Offset", value: "\(selectedMatch.offsetMilliseconds)", unit: "ms")
                     }
 
                     SyncBar(match: selectedMatch)
+                    AlignmentDetails(match: selectedMatch)
 
                     HStack {
                         Label(selectedMatch.syncLabel, systemImage: "checkmark.seal.fill")
@@ -199,7 +228,7 @@ struct ContentView: View {
 
             FeatureStatusRow(icon: "music.note.list", title: "Music discovery", status: "Mock catalog")
             FeatureStatusRow(icon: "metronome", title: "Metronome", status: "Generated click")
-            FeatureStatusRow(icon: "waveform", title: "Beat alignment", status: "Simulated score")
+            FeatureStatusRow(icon: "waveform", title: "Beat alignment", status: "Prototype analysis")
             FeatureStatusRow(icon: "applewatch", title: "Apple Watch", status: "Future phase")
         }
         .padding(18)
@@ -227,15 +256,103 @@ struct ContentView: View {
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text(value)
                     .font(.headline.monospacedDigit())
-                Text(unit)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                if !unit.isEmpty {
+                    Text(unit)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
+private struct AlignmentDetails: View {
+    let match: TrackMatch
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("Alignment Analysis", systemImage: "point.topleft.down.curvedto.point.bottomright.up")
+                    .font(.subheadline.weight(.semibold))
+
+                Spacer()
+
+                Text("\(Int(match.alignment.confidence * 100))% confidence")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+
+            Text(match.alignment.mode.description)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            BeatGrid(match: match)
+
+            HStack(spacing: 10) {
+                analysisPill("Song beat", "\(match.alignment.songBeatIntervalMilliseconds) ms")
+                analysisPill("Runner beat", "\(match.alignment.metronomeIntervalMilliseconds) ms")
+                analysisPill("Delta", "\(match.alignment.bpmDelta) BPM")
+            }
+        }
+        .padding(12)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private func analysisPill(_ title: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            Text(value)
+                .font(.caption.weight(.semibold))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct BeatGrid: View {
+    let match: TrackMatch
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color(.tertiarySystemGroupedBackground))
+
+                ForEach(0..<8, id: \.self) { index in
+                    let x = proxy.size.width * CGFloat(index) / 7
+                    beatMarker(x: x, color: .blue, height: 24)
+                }
+
+                ForEach(0..<8, id: \.self) { index in
+                    let phase = CGFloat(match.alignment.phaseOffsetMilliseconds) / 120
+                    let rawX = proxy.size.width * (CGFloat(index) / 7 + phase / 7)
+                    let wrappedX = rawX.truncatingRemainder(dividingBy: max(1, proxy.size.width))
+                    beatMarker(x: wrappedX, color: .green, height: 16)
+                }
+            }
+        }
+        .frame(height: 28)
+        .accessibilityLabel("Beat alignment grid")
+    }
+
+    private func beatMarker(x: CGFloat, color: Color, height: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: 1.5)
+            .fill(color.opacity(0.8))
+            .frame(width: 3, height: height)
+            .offset(x: x)
     }
 }
 
@@ -259,6 +376,10 @@ private struct TrackRow: View {
 
                     Text("\(match.track.artist) • \(match.track.bpm) BPM • \(match.track.genre)")
                         .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Text(match.alignment.mode.title)
+                        .font(.caption2.weight(.medium))
                         .foregroundStyle(.secondary)
                 }
 

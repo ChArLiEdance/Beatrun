@@ -19,11 +19,17 @@ final class MetronomeEngine {
     private(set) var audioStatus = "Ready"
     private(set) var audioError: String?
     private(set) var volume = 0.75
+    private(set) var musicStatus = "Generated loop ready"
+    private(set) var musicVolume = 0.45
+    private(set) var selectedTrackTitle = "No track"
 
     @ObservationIgnored private var timer: Timer?
     @ObservationIgnored private let audioEngine = AVAudioEngine()
-    @ObservationIgnored private let playerNode = AVAudioPlayerNode()
+    @ObservationIgnored private let clickNode = AVAudioPlayerNode()
+    @ObservationIgnored private let backingNode = AVAudioPlayerNode()
+    @ObservationIgnored private let audioFormat = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)!
     @ObservationIgnored private var clickBuffer: AVAudioPCMBuffer?
+    @ObservationIgnored private var backingBuffer: AVAudioPCMBuffer?
     @ObservationIgnored private var isAudioConfigured = false
 
     func toggle() {
@@ -38,6 +44,8 @@ final class MetronomeEngine {
             beatCount = 0
             audioError = nil
             audioStatus = "Playing"
+            musicStatus = backingBuffer == nil ? "No backing loop" : "Backing loop playing"
+            startBackingLoop()
             playClick()
             restartTimer()
         } catch {
@@ -50,14 +58,35 @@ final class MetronomeEngine {
     func stop() {
         isRunning = false
         audioStatus = audioError == nil ? "Ready" : "Audio unavailable"
+        musicStatus = backingBuffer == nil ? "No backing loop" : "Generated loop ready"
         timer?.invalidate()
         timer = nil
-        playerNode.stop()
+        clickNode.stop()
+        backingNode.stop()
     }
 
     func setVolume(_ newValue: Double) {
         volume = min(max(newValue, 0), 1)
-        playerNode.volume = Float(volume)
+        clickNode.volume = Float(volume)
+    }
+
+    func setMusicVolume(_ newValue: Double) {
+        musicVolume = min(max(newValue, 0), 1)
+        backingNode.volume = Float(musicVolume)
+    }
+
+    func setBackingTrack(_ match: TrackMatch) {
+        selectedTrackTitle = match.track.title
+        backingBuffer = Self.makeBackingLoopBuffer(
+            track: match.track,
+            alignment: match.alignment,
+            format: audioFormat
+        )
+        musicStatus = isRunning ? "Backing loop playing" : "Generated loop ready"
+
+        if isRunning {
+            startBackingLoop()
+        }
     }
 
     private func restartTimer() {
@@ -77,10 +106,17 @@ final class MetronomeEngine {
         lastBeatDate = Date()
 
         guard let clickBuffer else { return }
-        playerNode.scheduleBuffer(clickBuffer, at: nil, options: .interrupts, completionHandler: nil)
-        if !playerNode.isPlaying {
-            playerNode.play()
+        clickNode.scheduleBuffer(clickBuffer, at: nil, options: .interrupts, completionHandler: nil)
+        if !clickNode.isPlaying {
+            clickNode.play()
         }
+    }
+
+    private func startBackingLoop() {
+        guard isAudioConfigured, let backingBuffer else { return }
+        backingNode.stop()
+        backingNode.scheduleBuffer(backingBuffer, at: nil, options: .loops, completionHandler: nil)
+        backingNode.play()
     }
 
     private func prepareAudioIfNeeded() throws {
@@ -95,12 +131,14 @@ final class MetronomeEngine {
         try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
         try session.setActive(true)
 
-        let format = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)!
-        clickBuffer = Self.makeClickBuffer(format: format)
+        clickBuffer = Self.makeClickBuffer(format: audioFormat)
 
-        audioEngine.attach(playerNode)
-        audioEngine.connect(playerNode, to: audioEngine.mainMixerNode, format: format)
-        playerNode.volume = Float(volume)
+        audioEngine.attach(clickNode)
+        audioEngine.attach(backingNode)
+        audioEngine.connect(clickNode, to: audioEngine.mainMixerNode, format: audioFormat)
+        audioEngine.connect(backingNode, to: audioEngine.mainMixerNode, format: audioFormat)
+        clickNode.volume = Float(volume)
+        backingNode.volume = Float(musicVolume)
 
         try audioEngine.start()
         isAudioConfigured = true
@@ -128,5 +166,54 @@ final class MetronomeEngine {
         }
 
         return buffer
+    }
+
+    private static func makeBackingLoopBuffer(
+        track: RunningTrack,
+        alignment: BeatAlignment,
+        format: AVAudioFormat
+    ) -> AVAudioPCMBuffer {
+        let beatsPerLoop = 8
+        let beatInterval = 60.0 / Double(track.bpm)
+        let duration = beatInterval * Double(beatsPerLoop)
+        let sampleRate = format.sampleRate
+        let frameCount = AVAudioFrameCount(duration * sampleRate)
+        let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount)!
+        buffer.frameLength = frameCount
+
+        let frames = Int(frameCount)
+        let channel = buffer.floatChannelData![0]
+        let energy = min(max(Double(track.energy) / 100.0, 0.35), 1.0)
+        let bassFrequency = track.preference == .instrumental ? 82.0 : 110.0
+        let padFrequency = 220.0 + Double(track.title.count % 5) * 18.0
+
+        for frame in 0..<frames {
+            let time = Double(frame) / sampleRate
+            let beatPosition = time / beatInterval
+            let beatIndex = Int(beatPosition.rounded(.down))
+            let beatPhase = beatPosition - Double(beatIndex)
+
+            let kick = percussionEnvelope(phase: beatPhase, width: 0.14, power: 9.0) * (beatIndex % 2 == 0 ? 0.72 : 0.36)
+            let snarePhase = abs(beatPhase - 0.5)
+            let snare = percussionEnvelope(phase: snarePhase, width: 0.08, power: 7.0) * (beatIndex % 4 == 2 ? 0.38 : 0.16)
+            let hatPhase = abs((beatPhase * 2.0).truncatingRemainder(dividingBy: 1.0))
+            let hat = percussionEnvelope(phase: hatPhase, width: 0.05, power: 12.0) * 0.16
+
+            let bassEnvelope = max(0, 1.0 - beatPhase * 1.6)
+            let bass = sin(2.0 * .pi * bassFrequency * time) * bassEnvelope * 0.2
+            let pad = sin(2.0 * .pi * padFrequency * time) * 0.055
+            let syncPulse = alignment.mode == .doubleTime ? sin(2.0 * .pi * Double(alignment.effectiveBPM) / 60.0 * time) * 0.035 : 0
+
+            let sample = (kick + snare + hat + bass + pad + syncPulse) * energy
+            channel[frame] = Float(max(-0.95, min(0.95, sample)))
+        }
+
+        return buffer
+    }
+
+    private static func percussionEnvelope(phase: Double, width: Double, power: Double) -> Double {
+        guard phase >= 0, phase < width else { return 0 }
+        let normalized = 1.0 - phase / width
+        return pow(normalized, power)
     }
 }

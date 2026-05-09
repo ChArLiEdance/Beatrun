@@ -36,21 +36,101 @@ struct RunningTrack: Identifiable, Hashable {
     let beatConfidence: Double
 
     func tempoDistance(to cadence: Int) -> Int {
-        let direct = abs(bpm - cadence)
-        let doubleTime = abs((bpm * 2) - cadence)
-        let halfTime = abs((bpm / 2) - cadence)
-        return min(direct, doubleTime, halfTime)
+        BeatAlignment.analyze(track: self, cadence: cadence).bpmDelta
     }
 
     func matchScore(for cadence: Int) -> Int {
-        let tempoScore = max(0, 100 - tempoDistance(to: cadence) * 4)
-        let confidenceScore = Int(beatConfidence * 100)
-        return min(100, Int(Double(tempoScore) * 0.65 + Double(confidenceScore) * 0.35))
+        BeatAlignment.analyze(track: self, cadence: cadence).score
     }
 
     func alignmentOffsetMilliseconds(for cadence: Int) -> Int {
-        let distance = tempoDistance(to: cadence)
-        return min(80, max(6, distance * 6))
+        BeatAlignment.analyze(track: self, cadence: cadence).phaseOffsetMilliseconds
+    }
+}
+
+enum TempoMatchMode: String {
+    case direct
+    case doubleTime
+    case halfTime
+
+    var title: String {
+        switch self {
+        case .direct:
+            "Direct"
+        case .doubleTime:
+            "Double-time"
+        case .halfTime:
+            "Half-time"
+        }
+    }
+
+    var description: String {
+        switch self {
+        case .direct:
+            "Metronome clicks follow the song beat."
+        case .doubleTime:
+            "Two running steps fit inside each song beat."
+        case .halfTime:
+            "One running step spans two fast song beats."
+        }
+    }
+}
+
+struct BeatAlignment: Hashable {
+    let mode: TempoMatchMode
+    let effectiveBPM: Int
+    let bpmDelta: Int
+    let phaseOffsetMilliseconds: Int
+    let confidence: Double
+
+    var score: Int {
+        let tempoScore = max(0, 100 - bpmDelta * 4)
+        let confidenceScore = Int(confidence * 100)
+        return min(100, Int(Double(tempoScore) * 0.65 + Double(confidenceScore) * 0.35))
+    }
+
+    var qualityLabel: String {
+        if bpmDelta <= 2 {
+            "Locked"
+        } else if bpmDelta <= 6 {
+            "Close"
+        } else {
+            "Needs analysis"
+        }
+    }
+
+    var metronomeIntervalMilliseconds: Int {
+        Int((60.0 / Double(effectiveBPM) * 1_000).rounded())
+    }
+
+    var songBeatIntervalMilliseconds: Int {
+        Int((60.0 / Double(max(1, effectiveBPM)) * 1_000).rounded())
+    }
+
+    static func analyze(track: RunningTrack, cadence: Int) -> BeatAlignment {
+        let candidates: [(TempoMatchMode, Int)] = [
+            (.direct, track.bpm),
+            (.doubleTime, track.bpm * 2),
+            (.halfTime, max(1, track.bpm / 2))
+        ]
+
+        let best = candidates.min { first, second in
+            abs(first.1 - cadence) < abs(second.1 - cadence)
+        } ?? (.direct, track.bpm)
+
+        let bpmDelta = abs(best.1 - cadence)
+        let confidencePenalty = min(0.45, Double(bpmDelta) * 0.035)
+        let adjustedConfidence = min(0.99, max(0.1, track.beatConfidence - confidencePenalty))
+        let titleSeed = track.title.unicodeScalars.reduce(0) { $0 + Int($1.value) }
+        let phaseOffset = min(96, max(4, (titleSeed % 42) + bpmDelta * 5))
+
+        return BeatAlignment(
+            mode: best.0,
+            effectiveBPM: best.1,
+            bpmDelta: bpmDelta,
+            phaseOffsetMilliseconds: phaseOffset,
+            confidence: adjustedConfidence
+        )
     }
 }
 
@@ -59,18 +139,13 @@ struct TrackMatch: Identifiable {
     let cadence: Int
 
     var id: UUID { track.id }
-    var score: Int { track.matchScore(for: cadence) }
-    var offsetMilliseconds: Int { track.alignmentOffsetMilliseconds(for: cadence) }
-    var tempoDistance: Int { track.tempoDistance(to: cadence) }
+    var alignment: BeatAlignment { BeatAlignment.analyze(track: track, cadence: cadence) }
+    var score: Int { alignment.score }
+    var offsetMilliseconds: Int { alignment.phaseOffsetMilliseconds }
+    var tempoDistance: Int { alignment.bpmDelta }
 
     var syncLabel: String {
-        if tempoDistance <= 2 {
-            "Locked"
-        } else if tempoDistance <= 6 {
-            "Close"
-        } else {
-            "Needs analysis"
-        }
+        alignment.qualityLabel
     }
 }
 
@@ -78,12 +153,14 @@ struct MockMusicCatalog {
     static let tracks: [RunningTrack] = [
         RunningTrack(title: "Night Circuit", artist: "Pulse Atlas", bpm: 160, preference: .instrumental, genre: "Electronic", energy: 82, beatConfidence: 0.94),
         RunningTrack(title: "Forward Motion", artist: "Lane Echo", bpm: 166, preference: .instrumental, genre: "Synth", energy: 78, beatConfidence: 0.91),
+        RunningTrack(title: "Ground Pulse", artist: "Lowline", bpm: 90, preference: .instrumental, genre: "Downtempo", energy: 76, beatConfidence: 0.93),
         RunningTrack(title: "Steel Horizon", artist: "Metric Drift", bpm: 172, preference: .instrumental, genre: "Breakbeat", energy: 88, beatConfidence: 0.89),
         RunningTrack(title: "Clean Stride", artist: "Northline", bpm: 180, preference: .instrumental, genre: "House", energy: 90, beatConfidence: 0.97),
         RunningTrack(title: "Blue Relay", artist: "Aster Beat", bpm: 186, preference: .instrumental, genre: "Dance", energy: 86, beatConfidence: 0.9),
         RunningTrack(title: "Step Into Light", artist: "Mira Lane", bpm: 158, preference: .vocal, genre: "Pop", energy: 74, beatConfidence: 0.86),
         RunningTrack(title: "Hold the Pace", artist: "The Split Times", bpm: 168, preference: .vocal, genre: "Indie Pop", energy: 79, beatConfidence: 0.88),
         RunningTrack(title: "Keep Breathing", artist: "Cora Vale", bpm: 176, preference: .vocal, genre: "Pop Rock", energy: 84, beatConfidence: 0.87),
+        RunningTrack(title: "Every Other Step", artist: "Vera North", bpm: 90, preference: .vocal, genre: "Alt Pop", energy: 73, beatConfidence: 0.9),
         RunningTrack(title: "Run the Line", artist: "Bright Signal", bpm: 180, preference: .vocal, genre: "Dance Pop", energy: 91, beatConfidence: 0.92),
         RunningTrack(title: "After the Turn", artist: "City Frame", bpm: 188, preference: .vocal, genre: "Alternative", energy: 83, beatConfidence: 0.85)
     ]

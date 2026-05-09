@@ -2,6 +2,21 @@
 
 All notable Beatrun uploads are recorded here.
 
+## 2026-05-09 - Beat alignment and generated backing loop
+
+### Added
+
+- Added prototype beat-alignment analysis for direct, double-time, and half-time matching.
+- Added alignment details to the playback preview, including match mode, confidence, phase offset, BPM delta, and beat grid visualization.
+- Added mock 90 BPM tracks to test double-time cadence matching.
+- Added a generated backing music loop so prototype playback includes both music and metronome audio.
+- Added separate volume controls for generated music and metronome click.
+
+### Verified
+
+- Built successfully with `xcodebuild` for the iPhone 17 simulator.
+- Installed and launched successfully in the iPhone 17 simulator.
+
 ## 2026-05-09 - Metronome audio
 
 ### Added

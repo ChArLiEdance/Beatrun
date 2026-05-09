@@ -18,6 +18,7 @@ final class BeatrunModel {
 
     func select(_ match: TrackMatch) {
         selectedMatch = match
+        metronome.setBackingTrack(match)
     }
 
     func setCadence(_ newValue: Int) {
@@ -40,8 +41,12 @@ final class BeatrunModel {
         if let selectedMatch,
            let updatedSelection = recommendations.first(where: { $0.track.title == selectedMatch.track.title }) {
             self.selectedMatch = updatedSelection
+            metronome.setBackingTrack(updatedSelection)
         } else {
             selectedMatch = recommendations.first
+            if let selectedMatch {
+                metronome.setBackingTrack(selectedMatch)
+            }
         }
     }
 }
