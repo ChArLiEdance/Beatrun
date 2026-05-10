@@ -9,7 +9,7 @@ final class MetronomeEngine {
     var cadence: Int = 180 {
         didSet {
             guard cadence != oldValue, isRunning else { return }
-            restartTimer()
+            beginSyncedClickLoop()
         }
     }
 
@@ -22,8 +22,12 @@ final class MetronomeEngine {
     private(set) var musicStatus = "Generated loop ready"
     private(set) var musicVolume = 0.45
     private(set) var selectedTrackTitle = "No track"
+    private(set) var syncStatus = "Ready to sync"
+    private(set) var syncOffsetMilliseconds = 0
+    private(set) var syncMode = "Direct"
 
     @ObservationIgnored private var timer: Timer?
+    @ObservationIgnored private var syncStartTask: Task<Void, Never>?
     @ObservationIgnored private let audioEngine = AVAudioEngine()
     @ObservationIgnored private let clickNode = AVAudioPlayerNode()
     @ObservationIgnored private let backingNode = AVAudioPlayerNode()
@@ -43,11 +47,11 @@ final class MetronomeEngine {
             isRunning = true
             beatCount = 0
             audioError = nil
-            audioStatus = "Playing"
+            audioStatus = "Syncing"
             musicStatus = backingBuffer == nil ? "No backing loop" : "Backing loop playing"
+            syncStatus = syncOffsetMilliseconds == 0 ? "Locked on start" : "Waiting \(syncOffsetMilliseconds) ms for beat alignment"
             startBackingLoop()
-            playClick()
-            restartTimer()
+            beginSyncedClickLoop()
         } catch {
             audioError = error.localizedDescription
             audioStatus = "Audio unavailable"
@@ -59,6 +63,9 @@ final class MetronomeEngine {
         isRunning = false
         audioStatus = audioError == nil ? "Ready" : "Audio unavailable"
         musicStatus = backingBuffer == nil ? "No backing loop" : "Generated loop ready"
+        syncStatus = "Ready to sync"
+        syncStartTask?.cancel()
+        syncStartTask = nil
         timer?.invalidate()
         timer = nil
         clickNode.stop()
@@ -77,6 +84,8 @@ final class MetronomeEngine {
 
     func setBackingTrack(_ match: TrackMatch) {
         selectedTrackTitle = match.track.title
+        syncOffsetMilliseconds = match.alignment.phaseOffsetMilliseconds
+        syncMode = match.alignment.mode.title
         backingBuffer = Self.makeBackingLoopBuffer(
             track: match.track,
             alignment: match.alignment,
@@ -86,6 +95,24 @@ final class MetronomeEngine {
 
         if isRunning {
             startBackingLoop()
+            beginSyncedClickLoop()
+        }
+    }
+
+    private func beginSyncedClickLoop() {
+        syncStartTask?.cancel()
+        timer?.invalidate()
+        timer = nil
+
+        syncStartTask = Task { [syncOffsetMilliseconds] in
+            if syncOffsetMilliseconds > 0 {
+                try? await Task.sleep(for: .milliseconds(syncOffsetMilliseconds))
+            }
+            guard !Task.isCancelled else { return }
+            playClick()
+            audioStatus = "Playing"
+            syncStatus = "Locked with \(syncMode) alignment"
+            restartTimer()
         }
     }
 

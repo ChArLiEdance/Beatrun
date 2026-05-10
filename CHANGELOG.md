@@ -2,6 +2,18 @@
 
 All notable Beatrun uploads are recorded here.
 
+## 2026-05-10 - Synced playback start
+
+### Added
+
+- Added a synced playback-start prototype that delays the first metronome click by the selected track's beat-alignment offset.
+- Added visible playback sync status, alignment mode, and start-offset details to the preview panel.
+
+### Verified
+
+- Built successfully with `xcodebuild` for the iPhone 17 simulator.
+- Launched in the iPhone 17 simulator and verified playback state, beat counting, and sync-status updates.
+
 ## 2026-05-10 - Music discovery prototype
 
 ### Added

@@ -149,6 +149,12 @@ struct ContentView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
+                SyncRuntimeStatus(
+                    status: model.metronome.syncStatus,
+                    mode: model.metronome.syncMode,
+                    offsetMilliseconds: model.metronome.syncOffsetMilliseconds
+                )
+
                 if let audioError = model.metronome.audioError {
                     Text(audioError)
                         .font(.caption)
@@ -253,7 +259,7 @@ struct ContentView: View {
 
             FeatureStatusRow(icon: "music.note.list", title: "Music discovery", status: "Search prototype")
             FeatureStatusRow(icon: "metronome", title: "Metronome", status: "Generated click")
-            FeatureStatusRow(icon: "waveform", title: "Beat alignment", status: "Prototype analysis")
+            FeatureStatusRow(icon: "waveform", title: "Beat alignment", status: "Sync start")
             FeatureStatusRow(icon: "applewatch", title: "Apple Watch", status: "Future phase")
         }
         .padding(18)
@@ -294,6 +300,40 @@ struct ContentView: View {
         .padding(12)
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
+private struct SyncRuntimeStatus: View {
+    let status: String
+    let mode: String
+    let offsetMilliseconds: Int
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "scope")
+                .foregroundStyle(.blue)
+                .frame(width: 24)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(status)
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+
+                Text("\(mode) alignment • \(offsetMilliseconds) ms start offset")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+
+            Spacer()
+        }
+        .padding(10)
+        .background(Color(.tertiarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Playback synchronization status, \(status), \(mode) alignment, \(offsetMilliseconds) milliseconds start offset")
     }
 }
 
