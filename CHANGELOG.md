@@ -2,6 +2,38 @@
 
 All notable Beatrun uploads are recorded here.
 
+## 2026-06-12 - Synced queue transitions and Watch scaffold
+
+### Added
+
+- Added a beat-synced playback queue with current and upcoming 1:1 tempo-matched demo tracks.
+- Added next-track preloading and queue status in the iOS UI.
+- Added MVP-level 4-beat crossfade scheduled on 8-beat boundaries.
+- Added transition UI showing next track, remaining beats, preload state, and crossfade state.
+- Added a `BeatrunWatch` watchOS scaffold target with mock cadence, sync, queue, transition, and Play/Pause state.
+- Added a shared `BeatrunWatch` Xcode scheme for watchOS simulator builds.
+
+### Changed
+
+- Kept the metronome click timer as the master clock during track transitions.
+- Kept beat count running through queue transitions instead of resetting on crossfade.
+- Declared the Watch app's companion bundle identifier so the scaffold can install on a watchOS simulator.
+
+### Verified
+
+- Linted the Xcode project file with `plutil -lint Beatrun.xcodeproj/project.pbxproj`.
+- Built the iOS app successfully with `xcodebuild -project Beatrun.xcodeproj -scheme Beatrun -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/beatrun-final-ios build`.
+- Built the watchOS scaffold successfully with `xcodebuild -project Beatrun.xcodeproj -scheme BeatrunWatch -configuration Debug -destination 'generic/platform=watchOS Simulator' -derivedDataPath /private/tmp/beatrun-final-watch build`.
+- Installed and launched the iOS app on an iPhone 17 iOS 26.5 simulator.
+- Installed and launched the Watch scaffold on an Apple Watch Series 11 watchOS 26.5 simulator.
+- Ran source audits for 1:1 tempo matching, +/-10% filtering, no double-time/half-time symbols, and no beat-count reset during crossfade completion.
+
+### Risk
+
+- Crossfade is an MVP-level generated-loop transition, not professional seamless mixing.
+- Watch state is mocked and does not yet use WatchConnectivity, HealthKit, or Workout Session data.
+- The Watch target is companion-aware for simulator install, but it is not yet embedded into the iOS app's full distribution flow.
+
 ## 2026-06-12 - Competition MVP 1:1 tempo matching
 
 ### Added

@@ -12,7 +12,10 @@ Current MVP scope: 1:1 BPM matching only. Beatrun does not use double-time or ha
 - 1:1 BPM matching with tempo adjustment capped at +/-10%.
 - Automatic rediscovery and best-match selection after cadence or music type changes.
 - Generated backing loop plus metronome click using AVFoundation.
+- Beat-boundary playback queue with current/upcoming demo tracks.
+- MVP-level 4-beat crossfade between generated loops while the metronome clock keeps running.
 - Visible target cadence, original BPM, adjusted BPM, speed change, match score, beat-grid confidence, and rights status.
+- watchOS companion scaffold with mock playback state for cadence, sync, current track, next track, transition, and Play/Pause.
 - CHANGELOG and dev-log tracking for each upload phase.
 
 ## Legal Audio Strategy
@@ -52,7 +55,36 @@ No double-time or half-time matching is performed in this MVP.
 5. Switch between Instrumental and Vocal-style.
 6. Review recommended demo tracks and their original/adjusted BPM.
 7. Press play to hear the generated backing loop and synchronized metronome click.
-8. Change cadence and watch Beatrun automatically rediscover the best legal 1:1 match.
+8. Watch the queue panel show the upcoming track and beat countdown to the next transition.
+9. Change cadence and watch Beatrun automatically rediscover the best legal 1:1 match.
+
+## Queue Transition MVP
+
+The iOS app keeps the metronome click as the master clock. Demo music follows that clock:
+
+- The queue keeps a current track and a preloaded next track.
+- The next track is chosen from the same legal 1:1 recommendation list.
+- The next track's adjusted BPM matches the target cadence.
+- Transitions are scheduled on 8-beat boundaries.
+- The generated backing loops use a basic 4-beat crossfade.
+- Beat count is not reset during track transitions.
+
+This is an MVP-level transition prototype for judging and screen recording. It is not presented as professional-grade seamless DJ mixing.
+
+## Apple Watch Scaffold
+
+The project includes a `BeatrunWatch` watchOS target. The Watch app currently uses mock state and does not yet communicate with the iPhone app.
+
+The Watch scaffold shows:
+
+- Target cadence
+- Playback and sync status
+- Current track
+- Next track
+- Transition / crossfade status
+- Play/Pause control entry point
+
+The code leaves room for later `WatchConnectivity`, `HealthKit`, and Workout Session integration.
 
 ## Project Files
 
@@ -60,6 +92,7 @@ No double-time or half-time matching is performed in this MVP.
 - [Beatrun/BeatrunModel.swift](Beatrun/BeatrunModel.swift): app state, debounced rediscovery, best-match selection.
 - [Beatrun/MetronomeEngine.swift](Beatrun/MetronomeEngine.swift): generated audio loop and metronome playback.
 - [Beatrun/ContentView.swift](Beatrun/ContentView.swift): competition MVP UI.
+- [BeatrunWatch](BeatrunWatch): watchOS companion scaffold with mock playback state.
 - [CHANGELOG.md](CHANGELOG.md): upload history.
 - [docs/dev-log.md](docs/dev-log.md): detailed development log with verification and risks.
 - [docs/competition-roadmap.md](docs/competition-roadmap.md): competition preparation plan.
@@ -76,6 +109,12 @@ No double-time or half-time matching is performed in this MVP.
 
 ```zsh
 xcodebuild -project Beatrun.xcodeproj -scheme Beatrun -configuration Debug -destination 'generic/platform=iOS Simulator' build
+```
+
+## Build Watch Scaffold
+
+```zsh
+xcodebuild -project Beatrun.xcodeproj -scheme BeatrunWatch -configuration Debug -destination 'generic/platform=watchOS Simulator' build
 ```
 
 ## License

@@ -16,6 +16,14 @@ final class BeatrunModel {
     var selectedMatch: TrackMatch?
     let metronome = MetronomeEngine()
 
+    var nowPlayingMatch: TrackMatch? {
+        metronome.currentMatch ?? selectedMatch
+    }
+
+    var upcomingMatch: TrackMatch? {
+        metronome.upcomingMatch
+    }
+
     @ObservationIgnored private let discoveryService = MusicDiscoveryService()
     @ObservationIgnored private var discoveryTask: Task<Void, Never>?
     @ObservationIgnored private var scheduledDiscoveryTask: Task<Void, Never>?
@@ -27,7 +35,7 @@ final class BeatrunModel {
     func select(_ match: TrackMatch) {
         selectedMatch = match
         autoMatchMessage = "Manual selection: \(match.track.title)."
-        metronome.setBackingTrack(match)
+        metronome.setPlaybackQueue(current: match, candidates: recommendations)
     }
 
     func setCadence(_ newValue: Int) {
@@ -113,17 +121,17 @@ final class BeatrunModel {
         if preferBestMatch, let bestMatch = recommendations.first {
             selectedMatch = bestMatch
             autoMatchMessage = "Auto-selected \(bestMatch.track.title) for \(cadence) SPM."
-            metronome.setBackingTrack(bestMatch)
+            metronome.setPlaybackQueue(current: bestMatch, candidates: recommendations)
         } else if let selectedMatch,
            let updatedSelection = recommendations.first(where: { $0.track.title == selectedMatch.track.title }) {
             self.selectedMatch = updatedSelection
             autoMatchMessage = "Kept \(updatedSelection.track.title) for \(cadence) SPM."
-            metronome.setBackingTrack(updatedSelection)
+            metronome.setPlaybackQueue(current: updatedSelection, candidates: recommendations)
         } else {
             selectedMatch = recommendations.first
             if let selectedMatch {
                 autoMatchMessage = "Auto-selected \(selectedMatch.track.title) for \(cadence) SPM."
-                metronome.setBackingTrack(selectedMatch)
+                metronome.setPlaybackQueue(current: selectedMatch, candidates: recommendations)
             } else {
                 autoMatchMessage = "No legal 1:1 match found within \(Int(TempoAdjustment.maximumAdjustmentPercent))% speed change."
                 metronome.clearBackingTrack()

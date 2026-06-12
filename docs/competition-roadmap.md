@@ -10,7 +10,7 @@ The competition story should be:
 
 - Runners often struggle to keep a steady cadence during training.
 - Existing playlists only roughly match BPM and do not adapt to the runner's cadence.
-- Beatrun combines cadence selection, legal demo music matching, 1:1 tempo adjustment, and synchronized metronome playback in one mobile workflow.
+- Beatrun combines cadence selection, legal demo music matching, 1:1 tempo adjustment, beat-boundary queue transitions, and synchronized metronome playback in one mobile workflow.
 - The current product starts with safe generated or licensed audio samples, then can expand to legal music providers and Apple Watch cadence sensing.
 
 ## Scoring Targets
@@ -56,6 +56,7 @@ Required evidence:
 - The app builds and runs on iOS.
 - The demo path works without network access.
 - The user can set cadence, choose music preference, get recommendations, play a backing loop, and hear synchronized clicks.
+- The user can see the upcoming track and an MVP-level beat-synced transition countdown.
 - The app handles cadence changes by refreshing matches and keeping sync state visible.
 - The demo is stable enough for screen recording and live judging.
 
@@ -134,9 +135,10 @@ Target finish: 2026-06-29
 3. Show ranked recommendations and explain original BPM, adjusted BPM, and speed change.
 4. Select the best match and start playback.
 5. Show the synchronized metronome status, offset, confidence, and beat counter.
-6. Change cadence to 170 SPM and show automatic rediscovery.
-7. Explain that generated or licensed samples are used to avoid copyright risk.
-8. Close with Apple Watch and real-time cadence sensing as the next product stage.
+6. Show the next-track countdown and crossfade state.
+7. Change cadence to 170 SPM and show automatic rediscovery.
+8. Explain that generated or licensed samples are used to avoid copyright risk.
+9. Close with the Apple Watch scaffold and real-time cadence sensing as the next product stage.
 
 ## Highest-Impact Implementation Tasks
 
@@ -145,6 +147,7 @@ Target finish: 2026-06-29
 3. Add a demo checklist and screenshots directory.
 4. Add an architecture diagram or text outline for the submission document.
 5. Add a lightweight verification record after each successful build and demo run.
+6. Add WatchConnectivity and HealthKit only after the scaffolded watchOS target is stable.
 
 ## Risk Register
 

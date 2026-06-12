@@ -155,6 +155,16 @@ struct ContentView: View {
                     offsetMilliseconds: model.metronome.syncOffsetMilliseconds
                 )
 
+                QueueTransitionView(
+                    currentMatch: model.nowPlayingMatch,
+                    upcomingMatch: model.upcomingMatch,
+                    queueStatus: model.metronome.queueStatus,
+                    transitionStatus: model.metronome.transitionStatus,
+                    beatsRemaining: model.metronome.transitionBeatsRemaining,
+                    isCrossfading: model.metronome.isCrossfading,
+                    nextTrackReady: model.metronome.nextTrackReady
+                )
+
                 if let audioError = model.metronome.audioError {
                     Text(audioError)
                         .font(.caption)
@@ -165,7 +175,7 @@ struct ContentView: View {
             .background(Color(.secondarySystemGroupedBackground))
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
-            if let selectedMatch = model.selectedMatch {
+            if let selectedMatch = model.nowPlayingMatch {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(selectedMatch.track.title)
                         .font(.title2.bold())
@@ -266,8 +276,8 @@ struct ContentView: View {
 
             FeatureStatusRow(icon: "music.note.list", title: "Music matching", status: "Offline catalog")
             FeatureStatusRow(icon: "metronome", title: "Metronome", status: "Audio click")
-            FeatureStatusRow(icon: "waveform", title: "Tempo matching", status: "1:1 retime")
-            FeatureStatusRow(icon: "applewatch", title: "Apple Watch", status: "Next phase")
+            FeatureStatusRow(icon: "waveform", title: "Queue transition", status: "Beat boundary")
+            FeatureStatusRow(icon: "applewatch", title: "Apple Watch", status: "Scaffold")
         }
         .padding(18)
         .background(.background)
@@ -307,6 +317,81 @@ struct ContentView: View {
         .padding(12)
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+}
+
+private struct QueueTransitionView: View {
+    let currentMatch: TrackMatch?
+    let upcomingMatch: TrackMatch?
+    let queueStatus: String
+    let transitionStatus: String
+    let beatsRemaining: Int
+    let isCrossfading: Bool
+    let nextTrackReady: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label("Beat-Synced Queue", systemImage: "forward.end.alt")
+                    .font(.caption.weight(.semibold))
+
+                Spacer()
+
+                Text(isCrossfading ? "Crossfade" : nextTrackReady ? "Preloaded" : "Waiting")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(isCrossfading ? .orange : nextTrackReady ? .green : .secondary)
+            }
+
+            HStack(spacing: 10) {
+                queueTrackTile(title: "Current", match: currentMatch)
+                queueTrackTile(title: "Next", match: upcomingMatch)
+            }
+
+            HStack(spacing: 8) {
+                Image(systemName: isCrossfading ? "arrow.left.arrow.right.circle.fill" : "timer")
+                    .foregroundStyle(isCrossfading ? .orange : .blue)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(transitionStatus)
+                        .font(.caption.weight(.medium))
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
+
+                    Text("Remaining beats: \(beatsRemaining) • \(queueStatus)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.75)
+                }
+
+                Spacer()
+            }
+        }
+        .padding(10)
+        .background(Color(.tertiarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Queue transition, \(transitionStatus), crossfade \(isCrossfading ? "active" : "inactive")")
+    }
+
+    private func queueTrackTile(title: String, match: TrackMatch?) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            Text(match?.track.title ?? "None")
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+
+            Text(match.map { "\($0.adjustment.adjustedBPM) BPM • \($0.adjustment.speedChangeLabel)" } ?? "No legal match")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
