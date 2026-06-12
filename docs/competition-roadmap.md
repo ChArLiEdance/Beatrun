@@ -11,7 +11,7 @@ The competition story should be:
 - Runners often struggle to keep a steady cadence during training.
 - Existing playlists only roughly match BPM and do not adapt to the runner's cadence.
 - Beatrun combines cadence selection, legal demo music matching, 1:1 tempo adjustment, beat-boundary queue transitions, and synchronized metronome playback in one mobile workflow.
-- The current product starts with safe generated or licensed audio samples, then can expand to legal music providers and Apple Watch cadence sensing.
+- The current product starts with safe generated or licensed audio samples, adds a WatchConnectivity companion state path, then can expand to legal music providers and Apple Watch cadence sensing.
 
 ## Scoring Targets
 
@@ -57,6 +57,7 @@ Required evidence:
 - The demo path works without network access.
 - The user can set cadence, choose music preference, get recommendations, play a backing loop, and hear synchronized clicks.
 - The user can see the upcoming track and an MVP-level beat-synced transition countdown.
+- The Watch companion can show cadence, current/next track, transition state, and basic controls.
 - The app handles cadence changes by refreshing matches and keeping sync state visible.
 - The demo is stable enough for screen recording and live judging.
 
@@ -147,7 +148,7 @@ Target finish: 2026-06-29
 3. Add a demo checklist and screenshots directory.
 4. Add an architecture diagram or text outline for the submission document.
 5. Add a lightweight verification record after each successful build and demo run.
-6. Add WatchConnectivity and HealthKit only after the scaffolded watchOS target is stable.
+6. Verify WatchConnectivity on a paired simulator/device, then add HealthKit and Workout Session after the companion UI remains stable.
 
 ## Risk Register
 

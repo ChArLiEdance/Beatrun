@@ -28,7 +28,7 @@ Use this checklist for the Qidi-track initial submission and later competition r
 - [ ] Target users: beginner runners, cadence-training runners, school running groups
 - [ ] Core workflow: cadence selection, legal demo music matching, 1:1 tempo adjustment, synced playback
 - [ ] Queue workflow: current track, next track, beat countdown, and crossfade state
-- [ ] Watch scaffold: cadence, sync state, current/next track, and Play/Pause mock control
+- [ ] Watch companion: cadence, sync state, current/next track, transition state, Play/Pause, Stop, and +/-5 cadence controls
 - [ ] Innovation points
 - [ ] Technical architecture
 - [ ] Current completed functions
@@ -43,6 +43,7 @@ Use this checklist for the Qidi-track initial submission and later competition r
 - [ ] Cadence change demo recorded
 - [ ] Queue transition countdown and crossfade demo recorded
 - [ ] Watch scaffold screen recorded or screenshot captured
+- [ ] WatchConnectivity limitation explained if a paired simulator/device is not used
 - [ ] Music recommendation and match score explained
 - [ ] Original BPM, adjusted BPM, speed change, and rights status shown
 - [ ] Sync offset and confidence shown
@@ -65,6 +66,8 @@ Use this checklist for the Qidi-track initial submission and later competition r
 - [ ] Transition countdown is visible before crossfade
 - [ ] Crossfade state enters and exits
 - [ ] Beat count does not reset during track transition
+- [ ] Watch app launches and shows cadence, current/next track, sync state, and controls
+- [ ] WatchConnectivity command path verified on paired simulator/device or documented as reachability-limited
 - [ ] No placeholder text visible in the main demo path
 - [ ] No crash during a 3-minute continuous demo
 

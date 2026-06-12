@@ -1,5 +1,186 @@
 # Beatrun Development Log
 
+## 2026-06-12 - Watch Companion Polish and iOS Demo UI
+
+### Stage 1: Current State Review
+
+Completed:
+
+- Confirmed the repository started clean on `main`.
+- Reviewed iOS UI, app model, metronome engine, Watch UI, Watch state, and Xcode target wiring.
+- Confirmed the existing queue, preloading, crossfade, and 1:1 matching constraints were already in place before UI work.
+
+Files reviewed:
+
+- `Beatrun/ContentView.swift`
+- `Beatrun/BeatrunModel.swift`
+- `Beatrun/MetronomeEngine.swift`
+- `BeatrunWatch/WatchContentView.swift`
+- `BeatrunWatch/WatchPlaybackState.swift`
+- `Beatrun.xcodeproj/project.pbxproj`
+
+Verification:
+
+- `git status --short --branch`
+- `plutil -lint Beatrun.xcodeproj/project.pbxproj`
+- `xcodebuild -project Beatrun.xcodeproj -list`
+
+Remaining risk:
+
+- There is still no automated UI snapshot test target.
+
+Next step:
+
+- Add screenshot-based visual regression checks after the competition demo screens settle.
+
+### Stage 2: WatchConnectivity State Path
+
+Completed:
+
+- Added a shared `WatchSyncPayload` model for iOS-to-Watch state.
+- Added `WatchControlMessage` for Watch-to-iOS Play/Pause, Stop, and cadence delta commands.
+- Added iOS `WatchSyncCoordinator` using WatchConnectivity application context and reachable messages.
+- Added Watch `WatchConnectivityController` to receive iOS state and send controls back.
+- Routed iOS playback actions through `BeatrunModel` so local controls publish Watch state after changes.
+
+Files changed:
+
+- `Shared/WatchSyncPayload.swift`
+- `Beatrun/WatchSyncCoordinator.swift`
+- `Beatrun/BeatrunModel.swift`
+- `BeatrunWatch/WatchConnectivityController.swift`
+- `Beatrun.xcodeproj/project.pbxproj`
+
+Verification:
+
+- iOS and watchOS builds succeeded after the WatchConnectivity files were added.
+
+Remaining risk:
+
+- Live state sync depends on a paired, reachable simulator or physical device pair.
+- The current implementation uses basic application context and control messages, not a full session reliability layer.
+
+Next step:
+
+- Verify on a paired iPhone/watchOS simulator pair or real devices and record reachable-state behavior.
+
+### Stage 3: Watch Demo UI
+
+Completed:
+
+- Reworked the Watch interface around large cadence, playback state, sync status, transition countdown, current track, next track, adjusted BPM, tempo shift, and beat count.
+- Added Play/Pause, Stop, and cadence +/-5 controls.
+- Added lightweight local haptic feedback for Watch controls.
+- Kept local fallback state so the Watch screen remains usable when iPhone reachability is unavailable.
+
+Files changed:
+
+- `BeatrunWatch/WatchContentView.swift`
+- `BeatrunWatch/WatchPlaybackState.swift`
+
+Verification:
+
+- `xcodebuild -project Beatrun.xcodeproj -scheme BeatrunWatch -configuration Debug -destination 'generic/platform=watchOS Simulator' -derivedDataPath /private/tmp/beatrun-polish-watch build`
+
+Remaining risk:
+
+- The Watch screen still does not use HealthKit or Workout Session data.
+- Control delivery cannot be considered verified until a reachable paired simulator/device is used.
+
+Next step:
+
+- Pair simulators or use devices, then verify Play/Pause and cadence deltas update the iOS app.
+
+### Stage 4: iOS Demo Interface Polish
+
+Completed:
+
+- Added a run-mix header and Watch sync status chip.
+- Added cadence safety chips for 1:1 BPM, +/-10% adjustment, and offline audio.
+- Reworked the Now Playing header to surface current track, original-to-adjusted BPM, tempo shift, and playback control.
+- Made the next-track transition card more prominent with preload/crossfade state, remaining beats, and current/next tiles.
+- Updated recommendation rows with clear BPM, speed-shift, and rights pills.
+
+Files changed:
+
+- `Beatrun/ContentView.swift`
+
+Verification:
+
+- `xcodebuild -project Beatrun.xcodeproj -scheme Beatrun -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/beatrun-polish-ios build`
+
+Remaining risk:
+
+- Final visual validation still requires simulator screenshots across the main and playback/transition states.
+
+Next step:
+
+- Launch the iOS app, capture the main screen, start playback, and capture the transition state.
+
+### Stage 5: Documentation
+
+Completed:
+
+- Updated README with the polished iOS demo UI, WatchConnectivity scope, Watch fallback behavior, and HealthKit/Workout Session limitations.
+- Added this stage-by-stage development log.
+- Updated CHANGELOG with Watch companion polish, iOS UI polish, verification, and risks.
+
+Files changed:
+
+- `README.md`
+- `CHANGELOG.md`
+- `docs/dev-log.md`
+
+Verification:
+
+- Documentation reviewed for honest competition wording and no claim of real Apple Watch workout data.
+
+Remaining risk:
+
+- Final screenshot paths and final push commit are still pending.
+
+Next step:
+
+- Run final verification, capture screenshots, commit, and push.
+
+### Stage 6: Final Verification and Upload Prep
+
+Completed:
+
+- Rebuilt the final iOS app after UI layout polish.
+- Rebuilt the final Watch app after compacting the main screen around cadence, current/next track, beats remaining, and crossfade state.
+- Installed and launched both apps on the paired simulator set.
+- Captured the final iOS main, iOS playback/transition, and Watch main screenshots.
+- Re-ran source audits for matching rules and queue transition safety before staging.
+
+Files changed:
+
+- `Beatrun/ContentView.swift`
+- `BeatrunWatch/WatchContentView.swift`
+- `CHANGELOG.md`
+- `docs/dev-log.md`
+
+Verification:
+
+- `xcodebuild -project Beatrun.xcodeproj -scheme Beatrun -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/beatrun-polish-ios build`
+- `xcodebuild -project Beatrun.xcodeproj -scheme BeatrunWatch -configuration Debug -destination 'generic/platform=watchOS Simulator' -derivedDataPath /private/tmp/beatrun-polish-watch build`
+- `xcrun simctl launch 416591F8-0225-4495-81A0-B108D5B7EE51 com.charlie.Beatrun`
+- `xcrun simctl launch 416591F8-0225-4495-81A0-B108D5B7EE51 com.charlie.Beatrun -BeatrunDemoAutoplay`
+- `xcrun simctl launch FB9127E4-D22F-401E-AC24-2CD4CDDE8603 com.charlie.Beatrun.watch`
+- iOS main screenshot: `/private/tmp/beatrun-polish-ios-main.png`
+- iOS playback/transition screenshot: `/private/tmp/beatrun-polish-ios-transition.png`
+- Watch main screenshot: `/private/tmp/beatrun-polish-watch-main.png`
+
+Remaining risk:
+
+- WatchConnectivity code is implemented, and both simulator apps launch, but live reachable state sync can still vary with simulator pairing/reachability.
+- HealthKit and Workout Session are still intentionally not implemented.
+- Queue crossfade remains an MVP generated-loop transition rather than sample-accurate production mixing.
+
+Next step:
+
+- Commit and push the verified competition demo polish.
+
 ## 2026-06-12 - Synced Queue Transitions and Watch Scaffold
 
 ### Stage 1: Current State Review

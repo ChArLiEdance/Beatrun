@@ -12,6 +12,7 @@ final class BeatrunModel {
     private(set) var discoveryPhase: DiscoveryPhase = .ready
     private(set) var discoveryMessage = "Offline demo catalog ready."
     private(set) var autoMatchMessage = "Best match updates when cadence or music type changes."
+    private(set) var watchSyncStatus = "Watch sync starting"
     private(set) var searchCount = 0
     var selectedMatch: TrackMatch?
     let metronome = MetronomeEngine()
@@ -25,17 +26,22 @@ final class BeatrunModel {
     }
 
     @ObservationIgnored private let discoveryService = MusicDiscoveryService()
+    @ObservationIgnored private let watchSyncCoordinator = WatchSyncCoordinator()
     @ObservationIgnored private var discoveryTask: Task<Void, Never>?
     @ObservationIgnored private var scheduledDiscoveryTask: Task<Void, Never>?
+    @ObservationIgnored private var watchStateTimer: Timer?
 
     init() {
+        configureWatchSync()
         refreshRecommendations()
+        publishWatchState()
     }
 
     func select(_ match: TrackMatch) {
         selectedMatch = match
         autoMatchMessage = "Manual selection: \(match.track.title)."
         metronome.setPlaybackQueue(current: match, candidates: recommendations)
+        publishWatchState()
     }
 
     func setCadence(_ newValue: Int) {
@@ -43,6 +49,7 @@ final class BeatrunModel {
         guard cadence != clampedValue else { return }
         cadence = clampedValue
         metronome.cadence = clampedValue
+        publishWatchState()
         scheduleDiscovery(
             reason: "Cadence changed to \(clampedValue) SPM.",
             delayMilliseconds: 350
@@ -64,9 +71,41 @@ final class BeatrunModel {
         startDiscovery(reason: "Manual search requested.", preferBestMatch: true)
     }
 
+    func togglePlayback() {
+        metronome.toggle()
+        updateWatchTicker()
+        publishWatchState()
+    }
+
+    func startPlayback() {
+        guard !metronome.isRunning else {
+            publishWatchState()
+            return
+        }
+        metronome.start()
+        updateWatchTicker()
+        publishWatchState()
+    }
+
+    func stopPlayback() {
+        guard metronome.isRunning else {
+            publishWatchState()
+            return
+        }
+        metronome.stop()
+        updateWatchTicker()
+        publishWatchState()
+    }
+
     func refreshRecommendations() {
         recommendations = DemoMusicCatalog.recommendations(cadence: cadence, preference: vocalPreference)
         applySelectionAfterDiscovery(preferBestMatch: true)
+    }
+
+    func publishWatchState() {
+        let payload = makeWatchPayload()
+        watchSyncCoordinator.publish(payload)
+        watchSyncStatus = watchSyncCoordinator.connectionStatus
     }
 
     private func scheduleDiscovery(reason: String, delayMilliseconds: Int) {
@@ -108,11 +147,13 @@ final class BeatrunModel {
                 applySelectionAfterDiscovery(preferBestMatch: preferBestMatch)
                 discoveryPhase = .ready
                 discoveryMessage = "Found \(matches.count) offline demo tracks."
+                publishWatchState()
             } catch is CancellationError {
                 return
             } catch {
                 discoveryPhase = .failed(error.localizedDescription)
                 discoveryMessage = error.localizedDescription
+                publishWatchState()
             }
         }
     }
@@ -122,20 +163,92 @@ final class BeatrunModel {
             selectedMatch = bestMatch
             autoMatchMessage = "Auto-selected \(bestMatch.track.title) for \(cadence) SPM."
             metronome.setPlaybackQueue(current: bestMatch, candidates: recommendations)
+            publishWatchState()
         } else if let selectedMatch,
            let updatedSelection = recommendations.first(where: { $0.track.title == selectedMatch.track.title }) {
             self.selectedMatch = updatedSelection
             autoMatchMessage = "Kept \(updatedSelection.track.title) for \(cadence) SPM."
             metronome.setPlaybackQueue(current: updatedSelection, candidates: recommendations)
+            publishWatchState()
         } else {
             selectedMatch = recommendations.first
             if let selectedMatch {
                 autoMatchMessage = "Auto-selected \(selectedMatch.track.title) for \(cadence) SPM."
                 metronome.setPlaybackQueue(current: selectedMatch, candidates: recommendations)
+                publishWatchState()
             } else {
                 autoMatchMessage = "No legal 1:1 match found within \(Int(TempoAdjustment.maximumAdjustmentPercent))% speed change."
                 metronome.clearBackingTrack()
+                publishWatchState()
             }
         }
+    }
+
+    private func configureWatchSync() {
+        watchSyncCoordinator.onCommand = { [weak self] command in
+            Task { @MainActor in
+                self?.handleWatchCommand(command)
+            }
+        }
+        watchSyncCoordinator.onStatusChange = { [weak self] status in
+            Task { @MainActor in
+                self?.watchSyncStatus = status
+            }
+        }
+    }
+
+    private func handleWatchCommand(_ command: WatchControlMessage) {
+        switch command.action {
+        case .playPause:
+            togglePlayback()
+        case .start:
+            startPlayback()
+        case .stop:
+            stopPlayback()
+        case .cadenceDelta:
+            setCadence(cadence + command.cadenceDelta)
+        }
+    }
+
+    private func updateWatchTicker() {
+        if metronome.isRunning {
+            startWatchTicker()
+        } else {
+            watchStateTimer?.invalidate()
+            watchStateTimer = nil
+        }
+    }
+
+    private func startWatchTicker() {
+        guard watchStateTimer == nil else { return }
+        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.publishWatchState()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        watchStateTimer = timer
+    }
+
+    private func makeWatchPayload() -> WatchSyncPayload {
+        let current = nowPlayingMatch
+        let upcoming = upcomingMatch
+        return WatchSyncPayload(
+            targetCadence: cadence,
+            isPlaying: metronome.isRunning,
+            playbackStatus: metronome.isRunning ? "Playing" : "Ready",
+            syncStatus: metronome.syncStatus,
+            currentTrack: current?.track.title ?? metronome.selectedTrackTitle,
+            nextTrack: upcoming?.track.title ?? "No upcoming track",
+            transitionStatus: metronome.transitionStatus,
+            beatsRemaining: metronome.transitionBeatsRemaining,
+            isCrossfading: metronome.isCrossfading,
+            beatCount: metronome.beatCount,
+            originalBPM: current?.adjustment.originalBPM ?? 0,
+            adjustedBPM: current?.adjustment.adjustedBPM ?? cadence,
+            speedChangeLabel: current?.adjustment.speedChangeLabel ?? "+0.0%",
+            rightsStatus: current?.track.rights.status.title ?? "Offline demo audio",
+            updatedAt: Date()
+        )
     }
 }

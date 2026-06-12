@@ -2,6 +2,37 @@
 
 All notable Beatrun uploads are recorded here.
 
+## 2026-06-12 - Watch companion polish and iOS demo UI
+
+### Added
+
+- Added shared Watch sync payloads for iOS and watchOS state exchange.
+- Added iOS `WatchSyncCoordinator` using WatchConnectivity application context and control messages.
+- Added Watch `WatchConnectivityController` to receive iOS playback state and send Play/Pause, Stop, and cadence +/-5 controls.
+- Added lightweight Watch haptic feedback for local control taps.
+- Added a more compact Watch UI for cadence, playback state, sync state, current track, next track, transition countdown, crossfade state, BPM, shift, and beat count.
+
+### Changed
+
+- Polished the iOS first screen with a clearer run-mix header, cadence safety chips, Now Playing hierarchy, stronger next-track transition card, and easier-to-scan recommendation rows.
+- Routed iOS playback controls through `BeatrunModel` so Watch sync publishes state after local Play/Pause actions.
+- Updated the competition readiness panel to show the Watch companion as sync-ready.
+
+### Verified
+
+- Built iOS successfully with `xcodebuild -project Beatrun.xcodeproj -scheme Beatrun -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/beatrun-polish-ios build`.
+- Built watchOS successfully with `xcodebuild -project Beatrun.xcodeproj -scheme BeatrunWatch -configuration Debug -destination 'generic/platform=watchOS Simulator' -derivedDataPath /private/tmp/beatrun-polish-watch build`.
+- Installed and launched the iOS app on the paired iPhone 17 simulator.
+- Installed and launched the Watch app on the paired Apple Watch Ultra 3 simulator.
+- Captured final demo screenshots at `/private/tmp/beatrun-polish-ios-main.png`, `/private/tmp/beatrun-polish-ios-transition.png`, and `/private/tmp/beatrun-polish-watch-main.png`.
+- Re-ran source audits for 1:1-only matching, +/-10% tempo limits, no double-time/half-time implementation, and preserved beat count across crossfade completion.
+
+### Risk
+
+- WatchConnectivity is implemented at the application-context/control-message layer, but live simulator state sync depends on having a paired, reachable iPhone/watchOS simulator pair.
+- HealthKit and Workout Session are still reserved for a later implementation.
+- There is still no XCTest coverage for WatchConnectivity commands or queue timing.
+
 ## 2026-06-12 - Synced queue transitions and Watch scaffold
 
 ### Added

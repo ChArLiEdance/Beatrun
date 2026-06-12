@@ -14,8 +14,9 @@ Current MVP scope: 1:1 BPM matching only. Beatrun does not use double-time or ha
 - Generated backing loop plus metronome click using AVFoundation.
 - Beat-boundary playback queue with current/upcoming demo tracks.
 - MVP-level 4-beat crossfade between generated loops while the metronome clock keeps running.
-- Visible target cadence, original BPM, adjusted BPM, speed change, match score, beat-grid confidence, and rights status.
-- watchOS companion scaffold with mock playback state for cadence, sync, current track, next track, transition, and Play/Pause.
+- Polished iOS demo interface with a run-mix header, current track, next track, transition countdown, beat count, target cadence, adjusted BPM, tempo shift, and rights status.
+- WatchConnectivity-based companion state path for cadence, playback, sync, queue, transition, and basic Watch controls.
+- watchOS companion UI with Play/Pause, Stop, cadence +/-5 controls, transition state, crossfade state, BPM, shift, and beat count.
 - CHANGELOG and dev-log tracking for each upload phase.
 
 ## Legal Audio Strategy
@@ -56,7 +57,8 @@ No double-time or half-time matching is performed in this MVP.
 6. Review recommended demo tracks and their original/adjusted BPM.
 7. Press play to hear the generated backing loop and synchronized metronome click.
 8. Watch the queue panel show the upcoming track and beat countdown to the next transition.
-9. Change cadence and watch Beatrun automatically rediscover the best legal 1:1 match.
+9. Open the `BeatrunWatch` scheme to show the Watch companion view with cadence, queue, transition, and control state.
+10. Change cadence and watch Beatrun automatically rediscover the best legal 1:1 match.
 
 ## Queue Transition MVP
 
@@ -71,28 +73,44 @@ The iOS app keeps the metronome click as the master clock. Demo music follows th
 
 This is an MVP-level transition prototype for judging and screen recording. It is not presented as professional-grade seamless DJ mixing.
 
-## Apple Watch Scaffold
+## Apple Watch Companion
 
-The project includes a `BeatrunWatch` watchOS target. The Watch app currently uses mock state and does not yet communicate with the iPhone app.
+The project includes a `BeatrunWatch` watchOS target. The iOS app and Watch app now share a lightweight WatchConnectivity payload model.
 
-The Watch scaffold shows:
+The Watch companion shows:
 
 - Target cadence
 - Playback and sync status
 - Current track
 - Next track
 - Transition / crossfade status
-- Play/Pause control entry point
+- Beat count, adjusted BPM, and tempo shift
+- Play/Pause and Stop controls
+- Cadence +/-5 controls
+- Lightweight haptic feedback for local control taps
 
-The code leaves room for later `WatchConnectivity`, `HealthKit`, and Workout Session integration.
+Current WatchConnectivity scope:
+
+- iOS publishes playback state through `updateApplicationContext`.
+- iOS can send reachable Watch updates through `sendMessage`.
+- Watch controls send Play/Pause, Stop, and cadence delta commands back to iOS when the simulator/device pair is reachable.
+- If the iPhone is not reachable, the Watch UI keeps a local fallback state so the competition demo screen remains usable.
+
+Limitations:
+
+- Live sync requires a paired, reachable iPhone/watchOS simulator or device pair.
+- HealthKit and Workout Session are not implemented yet.
+- The Watch UI does not claim real workout metrics or real-time heart-rate/cadence sensing.
 
 ## Project Files
 
 - [Beatrun/Models.swift](Beatrun/Models.swift): demo catalog, rights metadata, 1:1 tempo-adjustment scoring.
-- [Beatrun/BeatrunModel.swift](Beatrun/BeatrunModel.swift): app state, debounced rediscovery, best-match selection.
+- [Beatrun/BeatrunModel.swift](Beatrun/BeatrunModel.swift): app state, debounced rediscovery, best-match selection, Watch state publishing.
 - [Beatrun/MetronomeEngine.swift](Beatrun/MetronomeEngine.swift): generated audio loop and metronome playback.
 - [Beatrun/ContentView.swift](Beatrun/ContentView.swift): competition MVP UI.
-- [BeatrunWatch](BeatrunWatch): watchOS companion scaffold with mock playback state.
+- [Beatrun/WatchSyncCoordinator.swift](Beatrun/WatchSyncCoordinator.swift): iOS WatchConnectivity state publisher and command receiver.
+- [Shared/WatchSyncPayload.swift](Shared/WatchSyncPayload.swift): shared iOS/watchOS state and control message model.
+- [BeatrunWatch](BeatrunWatch): watchOS companion UI, local fallback state, and WatchConnectivity controller.
 - [CHANGELOG.md](CHANGELOG.md): upload history.
 - [docs/dev-log.md](docs/dev-log.md): detailed development log with verification and risks.
 - [docs/competition-roadmap.md](docs/competition-roadmap.md): competition preparation plan.
@@ -104,6 +122,7 @@ The code leaves room for later `WatchConnectivity`, `HealthKit`, and Workout Ses
 - iOS 18 or later
 - SwiftUI
 - AVFoundation
+- WatchConnectivity
 
 ## Build
 
@@ -111,7 +130,7 @@ The code leaves room for later `WatchConnectivity`, `HealthKit`, and Workout Ses
 xcodebuild -project Beatrun.xcodeproj -scheme Beatrun -configuration Debug -destination 'generic/platform=iOS Simulator' build
 ```
 
-## Build Watch Scaffold
+## Build Watch Companion
 
 ```zsh
 xcodebuild -project Beatrun.xcodeproj -scheme BeatrunWatch -configuration Debug -destination 'generic/platform=watchOS Simulator' build

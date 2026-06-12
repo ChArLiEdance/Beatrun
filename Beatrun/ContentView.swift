@@ -6,20 +6,62 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: 16) {
+                    dashboardHeader
                     cadencePanel
                     nowPlayingPanel
                     recommendationsPanel
                     roadmapPanel
                 }
-                .padding(20)
+                .padding(16)
             }
-            .background(Color(.systemGroupedBackground))
+            .background(
+                LinearGradient(
+                    colors: [
+                        Color(.systemGroupedBackground),
+                        Color.blue.opacity(0.08),
+                        Color.green.opacity(0.05)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+            )
             .navigationTitle("Beatrun")
         }
         .task {
             model.discoverMusic()
+#if DEBUG
+            if CommandLine.arguments.contains("-BeatrunDemoAutoplay") {
+                try? await Task.sleep(for: .milliseconds(700))
+                model.startPlayback()
+            }
+#endif
         }
+    }
+
+    private var dashboardHeader: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Run mix")
+                    .font(.largeTitle.bold())
+                    .lineLimit(1)
+                Text("Cadence-locked demo audio")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+            }
+
+            Spacer()
+
+            statusChip(
+                icon: "applewatch",
+                title: model.watchSyncStatus,
+                color: .teal
+            )
+        }
+        .padding(.horizontal, 2)
     }
 
     private var cadencePanel: some View {
@@ -38,6 +80,12 @@ struct ContentView: View {
                 Text("\(model.cadence)")
                     .font(.system(size: 52, weight: .bold, design: .rounded))
                     .monospacedDigit()
+            }
+
+            HStack(spacing: 8) {
+                statusChip(icon: "link", title: "1:1 BPM", color: .blue)
+                statusChip(icon: "speedometer", title: "+/-10%", color: .green)
+                statusChip(icon: "music.note", title: "Offline audio", color: .orange)
             }
 
             Slider(
@@ -77,25 +125,39 @@ struct ContentView: View {
         .padding(18)
         .background(.background)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .shadow(color: .black.opacity(0.06), radius: 14, y: 6)
     }
 
     private var nowPlayingPanel: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Label("Sync Preview", systemImage: "waveform.path")
-                    .font(.headline)
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("Now Playing", systemImage: model.metronome.isRunning ? "waveform.path.ecg" : "waveform.path")
+                        .font(.headline)
+
+                    Text(model.nowPlayingMatch?.track.title ?? "No legal match")
+                        .font(.title2.bold())
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+
+                    Text(model.nowPlayingMatch.map { "\($0.adjustment.originalBPM) -> \($0.adjustment.adjustedBPM) BPM • \($0.adjustment.speedChangeLabel)" } ?? "Choose a legal 1:1 demo track")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                }
 
                 Spacer()
 
                 Button {
-                    model.metronome.toggle()
+                    model.togglePlayback()
                 } label: {
                     Image(systemName: model.metronome.isRunning ? "pause.fill" : "play.fill")
                         .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.borderedProminent)
                 .clipShape(Circle())
-                .accessibilityLabel(model.metronome.isRunning ? "Stop metronome" : "Start metronome")
+                .accessibilityLabel(model.metronome.isRunning ? "Pause playback" : "Start playback")
             }
 
             VStack(alignment: .leading, spacing: 10) {
@@ -111,6 +173,16 @@ struct ContentView: View {
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
+
+                QueueTransitionView(
+                    currentMatch: model.nowPlayingMatch,
+                    upcomingMatch: model.upcomingMatch,
+                    queueStatus: model.metronome.queueStatus,
+                    transitionStatus: model.metronome.transitionStatus,
+                    beatsRemaining: model.metronome.transitionBeatsRemaining,
+                    isCrossfading: model.metronome.isCrossfading,
+                    nextTrackReady: model.metronome.nextTrackReady
+                )
 
                 Slider(
                     value: Binding(
@@ -155,16 +227,6 @@ struct ContentView: View {
                     offsetMilliseconds: model.metronome.syncOffsetMilliseconds
                 )
 
-                QueueTransitionView(
-                    currentMatch: model.nowPlayingMatch,
-                    upcomingMatch: model.upcomingMatch,
-                    queueStatus: model.metronome.queueStatus,
-                    transitionStatus: model.metronome.transitionStatus,
-                    beatsRemaining: model.metronome.transitionBeatsRemaining,
-                    isCrossfading: model.metronome.isCrossfading,
-                    nextTrackReady: model.metronome.nextTrackReady
-                )
-
                 if let audioError = model.metronome.audioError {
                     Text(audioError)
                         .font(.caption)
@@ -177,9 +239,6 @@ struct ContentView: View {
 
             if let selectedMatch = model.nowPlayingMatch {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(selectedMatch.track.title)
-                        .font(.title2.bold())
-
                     Text("\(selectedMatch.track.artist) • \(selectedMatch.track.genre)")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -217,16 +276,17 @@ struct ContentView: View {
         .padding(18)
         .background(.background)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .shadow(color: .black.opacity(0.06), radius: 14, y: 6)
     }
 
     private var recommendationsPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Music Discovery")
+                    Text("Recommended Safe Tracks")
                         .font(.headline)
 
-                    Text("Offline demo catalog")
+                    Text("Legal 1:1 fits for \(model.cadence) SPM")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -267,6 +327,7 @@ struct ContentView: View {
         .padding(18)
         .background(.background)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .shadow(color: .black.opacity(0.05), radius: 12, y: 5)
     }
 
     private var roadmapPanel: some View {
@@ -277,11 +338,12 @@ struct ContentView: View {
             FeatureStatusRow(icon: "music.note.list", title: "Music matching", status: "Offline catalog")
             FeatureStatusRow(icon: "metronome", title: "Metronome", status: "Audio click")
             FeatureStatusRow(icon: "waveform", title: "Queue transition", status: "Beat boundary")
-            FeatureStatusRow(icon: "applewatch", title: "Apple Watch", status: "Scaffold")
+            FeatureStatusRow(icon: "applewatch", title: "Apple Watch", status: "Sync-ready")
         }
         .padding(18)
         .background(.background)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .shadow(color: .black.opacity(0.04), radius: 10, y: 4)
     }
 
     private func cadencePresetButton(_ value: Int) -> some View {
@@ -318,6 +380,18 @@ struct ContentView: View {
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
+
+    private func statusChip(icon: String, title: String, color: Color) -> some View {
+        Label(title, systemImage: icon)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(color)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(color.opacity(0.12))
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
 }
 
 private struct QueueTransitionView: View {
@@ -332,14 +406,18 @@ private struct QueueTransitionView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Label("Beat-Synced Queue", systemImage: "forward.end.alt")
-                    .font(.caption.weight(.semibold))
+                Label("Next track", systemImage: "forward.end.alt.fill")
+                    .font(.subheadline.weight(.semibold))
 
                 Spacer()
 
                 Text(isCrossfading ? "Crossfade" : nextTrackReady ? "Preloaded" : "Waiting")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(isCrossfading ? .orange : nextTrackReady ? .green : .secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background((isCrossfading ? Color.orange : nextTrackReady ? Color.green : Color.secondary).opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
             }
 
             HStack(spacing: 10) {
@@ -353,11 +431,11 @@ private struct QueueTransitionView: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(transitionStatus)
-                        .font(.caption.weight(.medium))
+                        .font(.callout.weight(.semibold))
                         .lineLimit(2)
                         .minimumScaleFactor(0.8)
 
-                    Text("Remaining beats: \(beatsRemaining) • \(queueStatus)")
+                    Text("\(beatsRemaining) beats remaining • \(queueStatus)")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
@@ -367,8 +445,21 @@ private struct QueueTransitionView: View {
                 Spacer()
             }
         }
-        .padding(10)
-        .background(Color(.tertiarySystemGroupedBackground))
+        .padding(12)
+        .background(
+            LinearGradient(
+                colors: [
+                    (isCrossfading ? Color.orange : Color.blue).opacity(0.15),
+                    Color(.tertiarySystemGroupedBackground)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke((isCrossfading ? Color.orange : Color.blue).opacity(0.25), lineWidth: 1)
+        )
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Queue transition, \(transitionStatus), crossfade \(isCrossfading ? "active" : "inactive")")
@@ -619,17 +710,15 @@ private struct TrackRow: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
 
-                    Text("\(match.track.artist) • \(match.adjustment.originalBPM) -> \(match.adjustment.adjustedBPM) BPM • \(match.track.genre)")
+                    Text("\(match.track.artist) • \(match.track.genre)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    Text("1:1 tempo-adjusted \(match.adjustment.speedChangeLabel)")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(.secondary)
-
-                    Text("\(match.track.source.title) • \(match.track.rights.status.title)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 6) {
+                        rowPill("\(match.adjustment.originalBPM) -> \(match.adjustment.adjustedBPM) BPM", color: .blue)
+                        rowPill(match.adjustment.speedChangeLabel, color: abs(match.adjustment.speedChangePercent) <= 6 ? .green : .orange)
+                        rowPill(match.track.rights.status.title, color: .gray)
+                    }
 
                     Text(match.matchReason)
                         .font(.caption2)
@@ -652,9 +741,25 @@ private struct TrackRow: View {
             }
             .padding(12)
             .background(isSelected ? Color.accentColor.opacity(0.12) : Color(.secondarySystemGroupedBackground))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(isSelected ? Color.accentColor.opacity(0.35) : Color.clear, lineWidth: 1)
+            )
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .buttonStyle(.plain)
+    }
+
+    private func rowPill(_ title: String, color: Color) -> some View {
+        Text(title)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(color)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 4)
+            .background(color.opacity(0.11))
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
     }
 }
 
