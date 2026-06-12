@@ -1,170 +1,69 @@
 # Beatrun
 
-Beatrun is an iOS running music app that helps runners find music matching their target cadence, then overlays a synced metronome so each beat lands cleanly with the music.
+Beatrun is an iOS running cadence app for competition demos. The user chooses a target cadence, Beatrun recommends copyright-safe demo music, then plays a tempo-adjusted backing loop with a synchronized metronome click.
 
-The long-term goal is to make running cadence easier to maintain: the user chooses a steps-per-minute target, Beatrun finds suitable music, aligns the song rhythm with a metronome, and plays a steady, "on-beat" running track.
+Current MVP scope: 1:1 BPM matching only. Beatrun does not use double-time or half-time matching in this version, so a 90 BPM track is never used to match 180 SPM.
 
-## Core Idea
+## What Works Now
 
-Many running playlists use 180 BPM music because a stable tempo can help runners keep a consistent stride. Beatrun extends that idea by combining three parts:
+- Target cadence selection from 140 to 200 steps per minute.
+- Instrumental and vocal-style demo music preferences.
+- Offline demo catalog with generated, legal-for-demo playback.
+- 1:1 BPM matching with tempo adjustment capped at +/-10%.
+- Automatic rediscovery and best-match selection after cadence or music type changes.
+- Generated backing loop plus metronome click using AVFoundation.
+- Visible target cadence, original BPM, adjusted BPM, speed change, match score, beat-grid confidence, and rights status.
+- CHANGELOG and dev-log tracking for each upload phase.
 
-1. Music discovery for the runner's selected cadence.
-2. A generated metronome click at the target frequency.
-3. Beat alignment so the metronome matches the song's drum rhythm instead of feeling random or off-beat.
+## Legal Audio Strategy
 
-## User Flow
+The MVP uses local generated demo audio only. Beatrun does not scrape, download, stream, redistribute, or package unauthorized commercial music.
 
-1. The user opens Beatrun and selects a target running cadence, such as 160, 170, or 180 steps per minute.
-2. The user chooses whether they want instrumental music or music with vocals.
-3. Beatrun searches for music with a suitable tempo and rhythm profile.
-4. Beatrun analyzes the selected track's beat grid.
-5. Beatrun generates a metronome at the selected cadence.
-6. Beatrun aligns the metronome clicks with the song's drum beats.
-7. If the user changes cadence, Beatrun finds a new suitable track or adjusts the current matching process.
+Each demo track records:
 
-## Main Features
+- Original BPM
+- Target-adjusted BPM
+- Whether tempo adjustment is allowed
+- License/source type
+- Attribution
+- Source link or source explanation
+- Beat-grid source and confidence
 
-### 1. Cadence-Based Music Discovery
+The current demo catalog is documented in [docs/demo-catalog.md](docs/demo-catalog.md). The generated audio source is the local synthesis code in [Beatrun/MetronomeEngine.swift](Beatrun/MetronomeEngine.swift).
 
-Beatrun should recommend tracks that fit the user's current running cadence.
+## Matching Rules
 
-Initial version:
+For each track:
 
-- Let users select a target cadence.
-- Let users choose between instrumental and vocal music.
-- Search for tracks whose BPM is close to the target cadence.
-- Prefer songs with clear rhythmic structure and stable tempo.
+1. Beatrun compares the track's original BPM with the selected cadence.
+2. It calculates the speed ratio needed to make the track match the cadence.
+3. It rejects the track if the required speed change is outside +/-10%.
+4. It rejects the track if its rights metadata does not allow tempo adjustment.
+5. It ranks remaining tracks by tempo adjustment size and beat confidence.
 
-Future versions:
+No double-time or half-time matching is performed in this MVP.
 
-- Add custom genre filters.
-- Add mood and energy filters.
-- Save favorite cadence playlists.
-- Support user-provided music files where legally allowed.
+## Demo Flow
 
-### 2. Metronome Generation
+1. Open the `Beatrun` scheme in Xcode.
+2. Select an iPhone simulator.
+3. Run the app.
+4. Choose a target cadence such as 160, 170, 180, or 190 SPM.
+5. Switch between Instrumental and Vocal-style.
+6. Review recommended demo tracks and their original/adjusted BPM.
+7. Press play to hear the generated backing loop and synchronized metronome click.
+8. Change cadence and watch Beatrun automatically rediscover the best legal 1:1 match.
 
-Beatrun should generate a clear metronome sound at the selected cadence.
+## Project Files
 
-Initial version:
-
-- Use one default click sound.
-- Generate clicks at the target steps-per-minute frequency.
-- Keep timing stable during playback.
-
-Future versions:
-
-- Add multiple metronome sound choices.
-- Add volume control for the click track.
-- Add downbeat accents.
-- Add left/right step cues.
-
-### 3. Beat and Metronome Alignment
-
-This is the most important part of the app. The metronome should not simply play over the music; it should lock onto the song's rhythm.
-
-Initial version:
-
-- Detect or receive the song BPM.
-- Estimate the song beat grid.
-- Align the metronome phase with the strongest beat positions.
-- Keep the metronome synchronized during playback.
-
-Future versions:
-
-- Improve beat detection for songs with tempo drift.
-- Support half-time and double-time matching.
-- Handle intro sections before the main drum pattern starts.
-- Add automatic beat correction when sync drifts.
-- Support offline preprocessing for downloaded or user-owned tracks.
-
-## Music Source and Copyright Strategy
-
-Beatrun must use legal music sources. The app should not scrape, download, or redistribute copyrighted music without permission.
-
-Possible implementation paths:
-
-- Use licensed music APIs or streaming integrations.
-- Use preview clips where the provider allows analysis and playback.
-- Use royalty-free, public-domain, or creator-licensed tracks.
-- Let users import music they own, if the platform and license allow it.
-
-The music discovery system should store metadata such as BPM, vocal/instrumental type, genre, energy, and beat confidence. Actual full-track playback must follow the rules of the selected music provider.
-
-## Technical Plan
-
-### iOS App
-
-- SwiftUI for the user interface.
-- AVFoundation for audio playback and timing.
-- A cadence picker for steps per minute.
-- Music preference controls for instrumental or vocal tracks.
-- Playback screen with music, metronome, and sync state.
-
-### Audio Analysis
-
-- Track BPM detection or metadata lookup.
-- Beat onset detection.
-- Beat grid estimation.
-- Phase alignment between detected beat positions and generated metronome clicks.
-- Sync monitoring during playback.
-
-### Data Model
-
-Potential track metadata:
-
-- Track title
-- Artist
-- Source provider
-- BPM
-- Instrumental or vocal
-- Genre
-- Energy level
-- Beat confidence score
-- Playback or preview URL, depending on provider permissions
-
-## MVP Roadmap
-
-### Phase 1: App Skeleton
-
-- Build the basic SwiftUI app structure.
-- Add cadence selection.
-- Add instrumental/vocal preference toggle.
-- Add a placeholder music recommendation list.
-- Add a basic metronome engine.
-
-### Phase 2: Local Beat Matching Prototype
-
-- Use a small set of test tracks with known BPM.
-- Generate metronome clicks.
-- Align clicks with known beat positions.
-- Build a playback UI for testing sync quality.
-
-### Phase 3: Music Discovery
-
-- Choose a legal music source.
-- Fetch music metadata.
-- Filter tracks by cadence and vocal preference.
-- Rank tracks by BPM closeness and beat confidence.
-
-### Phase 4: Automatic Sync
-
-- Add beat detection or beat-grid import.
-- Align click phase automatically.
-- Handle cadence changes by selecting a new track or recalculating sync.
-
-### Phase 5: Apple Watch Support
-
-- Create a watchOS companion app.
-- Show cadence and playback status on Apple Watch.
-- Explore integration with Apple Watch workout sessions.
-- Keep iPhone and Watch state synchronized.
-
-## Current Status
-
-Beatrun is currently at the project setup stage. The repository contains a minimal SwiftUI iOS app and the first version of the product plan.
-
-Project upload history is tracked in [CHANGELOG.md](CHANGELOG.md).
+- [Beatrun/Models.swift](Beatrun/Models.swift): demo catalog, rights metadata, 1:1 tempo-adjustment scoring.
+- [Beatrun/BeatrunModel.swift](Beatrun/BeatrunModel.swift): app state, debounced rediscovery, best-match selection.
+- [Beatrun/MetronomeEngine.swift](Beatrun/MetronomeEngine.swift): generated audio loop and metronome playback.
+- [Beatrun/ContentView.swift](Beatrun/ContentView.swift): competition MVP UI.
+- [CHANGELOG.md](CHANGELOG.md): upload history.
+- [docs/dev-log.md](docs/dev-log.md): detailed development log with verification and risks.
+- [docs/competition-roadmap.md](docs/competition-roadmap.md): competition preparation plan.
+- [docs/submission-checklist.md](docs/submission-checklist.md): submission checklist.
 
 ## Requirements
 
@@ -173,9 +72,11 @@ Project upload history is tracked in [CHANGELOG.md](CHANGELOG.md).
 - SwiftUI
 - AVFoundation
 
-## Getting Started
+## Build
 
-Open `Beatrun.xcodeproj` in Xcode, select an iPhone simulator, then run the `Beatrun` scheme.
+```zsh
+xcodebuild -project Beatrun.xcodeproj -scheme Beatrun -configuration Debug -destination 'generic/platform=iOS Simulator' build
+```
 
 ## License
 

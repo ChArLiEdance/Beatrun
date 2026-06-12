@@ -120,7 +120,7 @@ struct ContentView: View {
                     in: 0...1,
                     step: 0.05
                 )
-                .accessibilityLabel("Generated music volume")
+                .accessibilityLabel("Backing music volume")
 
                 HStack {
                     Label(model.metronome.audioStatus, systemImage: model.metronome.isRunning ? "speaker.wave.2.fill" : "speaker.wave.1")
@@ -145,7 +145,7 @@ struct ContentView: View {
                 )
                 .accessibilityLabel("Metronome click volume")
 
-                Text("Generated backing loop for \(model.metronome.selectedTrackTitle)")
+                Text("Offline demo loop for \(model.metronome.selectedTrackTitle)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -174,11 +174,17 @@ struct ContentView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
+                    Text(selectedMatch.matchReason)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        metricTile(title: "Track", value: "\(selectedMatch.track.bpm)", unit: "BPM")
-                        metricTile(title: "Mode", value: selectedMatch.alignment.mode.title, unit: "")
-                        metricTile(title: "Match", value: "\(selectedMatch.score)", unit: "%")
-                        metricTile(title: "Offset", value: "\(selectedMatch.offsetMilliseconds)", unit: "ms")
+                        metricTile(title: "Target", value: "\(selectedMatch.adjustment.targetCadence)", unit: "SPM")
+                        metricTile(title: "Original", value: "\(selectedMatch.adjustment.originalBPM)", unit: "BPM")
+                        metricTile(title: "Adjusted", value: "\(selectedMatch.adjustment.adjustedBPM)", unit: "BPM")
+                        metricTile(title: "Speed", value: selectedMatch.adjustment.speedChangeLabel, unit: "")
+                        metricTile(title: "Score", value: "\(selectedMatch.score)", unit: "%")
+                        metricTile(title: "Rights", value: selectedMatch.track.rights.status.title, unit: "")
                     }
 
                     SyncBar(match: selectedMatch)
@@ -186,7 +192,7 @@ struct ContentView: View {
 
                     HStack {
                         Label(selectedMatch.syncLabel, systemImage: "checkmark.seal.fill")
-                            .foregroundStyle(selectedMatch.tempoDistance <= 6 ? .green : .orange)
+                            .foregroundStyle(abs(selectedMatch.adjustment.speedChangePercent) <= 6 ? .green : .orange)
 
                         Spacer()
 
@@ -210,7 +216,7 @@ struct ContentView: View {
                     Text("Music Discovery")
                         .font(.headline)
 
-                    Text("Generated preview provider")
+                    Text("Offline demo catalog")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -230,6 +236,7 @@ struct ContentView: View {
             DiscoveryStatusView(
                 phase: model.discoveryPhase,
                 message: model.discoveryMessage,
+                autoMatchMessage: model.autoMatchMessage,
                 searchCount: model.searchCount,
                 matchCount: model.recommendations.count
             )
@@ -254,13 +261,13 @@ struct ContentView: View {
 
     private var roadmapPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Prototype Scope")
+            Text("Competition MVP")
                 .font(.headline)
 
-            FeatureStatusRow(icon: "music.note.list", title: "Music discovery", status: "Search prototype")
-            FeatureStatusRow(icon: "metronome", title: "Metronome", status: "Generated click")
-            FeatureStatusRow(icon: "waveform", title: "Beat alignment", status: "Sync start")
-            FeatureStatusRow(icon: "applewatch", title: "Apple Watch", status: "Future phase")
+            FeatureStatusRow(icon: "music.note.list", title: "Music matching", status: "Offline catalog")
+            FeatureStatusRow(icon: "metronome", title: "Metronome", status: "Audio click")
+            FeatureStatusRow(icon: "waveform", title: "Tempo matching", status: "1:1 retime")
+            FeatureStatusRow(icon: "applewatch", title: "Apple Watch", status: "Next phase")
         }
         .padding(18)
         .background(.background)
@@ -320,7 +327,7 @@ private struct SyncRuntimeStatus: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
 
-                Text("\(mode) alignment • \(offsetMilliseconds) ms start offset")
+                Text("\(mode) tempo match • \(offsetMilliseconds) ms start offset")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -333,7 +340,7 @@ private struct SyncRuntimeStatus: View {
         .background(Color(.tertiarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Playback synchronization status, \(status), \(mode) alignment, \(offsetMilliseconds) milliseconds start offset")
+        .accessibilityLabel("Playback synchronization status, \(status), \(mode) tempo match, \(offsetMilliseconds) milliseconds start offset")
     }
 }
 
@@ -343,27 +350,42 @@ private struct AlignmentDetails: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label("Alignment Analysis", systemImage: "point.topleft.down.curvedto.point.bottomright.up")
+                Label("Tempo Fit", systemImage: "point.topleft.down.curvedto.point.bottomright.up")
                     .font(.subheadline.weight(.semibold))
 
                 Spacer()
 
-                Text("\(Int(match.alignment.confidence * 100))% confidence")
+                Text("\(Int(match.adjustment.confidence * 100))% confidence")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
 
-            Text(match.alignment.mode.description)
+            Text("1:1 matching only: original BPM is retimed within \(Int(TempoAdjustment.maximumAdjustmentPercent))% to match the target cadence.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+            Text("\(match.track.beatGridSource) • \(match.track.rights.status.note)")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(match.track.rights.licenseName)
+                    .font(.caption.weight(.semibold))
+                Text(match.track.rights.attribution)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                Text("\(match.track.rights.tempoAdjustmentLabel) • Source: \(match.track.rights.sourceLink)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
 
             BeatGrid(match: match)
 
             HStack(spacing: 10) {
-                analysisPill("Song beat", "\(match.alignment.songBeatIntervalMilliseconds) ms")
-                analysisPill("Runner beat", "\(match.alignment.metronomeIntervalMilliseconds) ms")
-                analysisPill("Delta", "\(match.alignment.bpmDelta) BPM")
+                analysisPill("Song beat", "\(match.adjustment.songBeatIntervalMilliseconds) ms")
+                analysisPill("Runner beat", "\(match.adjustment.metronomeIntervalMilliseconds) ms")
+                analysisPill("Speed", match.adjustment.speedChangeLabel)
             }
         }
         .padding(12)
@@ -402,7 +424,7 @@ private struct BeatGrid: View {
                 }
 
                 ForEach(0..<8, id: \.self) { index in
-                    let phase = CGFloat(match.alignment.phaseOffsetMilliseconds) / 120
+                    let phase = CGFloat(match.adjustment.phaseOffsetMilliseconds) / 140
                     let rawX = proxy.size.width * (CGFloat(index) / 7 + phase / 7)
                     let wrappedX = rawX.truncatingRemainder(dividingBy: max(1, proxy.size.width))
                     beatMarker(x: wrappedX, color: .green, height: 16)
@@ -410,7 +432,7 @@ private struct BeatGrid: View {
             }
         }
         .frame(height: 28)
-        .accessibilityLabel("Beat alignment grid")
+        .accessibilityLabel("1 to 1 tempo sync grid")
     }
 
     private func beatMarker(x: CGFloat, color: Color, height: CGFloat) -> some View {
@@ -424,6 +446,7 @@ private struct BeatGrid: View {
 private struct DiscoveryStatusView: View {
     let phase: DiscoveryPhase
     let message: String
+    let autoMatchMessage: String
     let searchCount: Int
     let matchCount: Int
 
@@ -445,6 +468,12 @@ private struct DiscoveryStatusView: View {
 
                 Spacer()
             }
+
+            Label(autoMatchMessage, systemImage: "arrow.triangle.2.circlepath")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
 
             HStack(spacing: 10) {
                 statusPill(title: "Source", value: MusicSource.generatedPreview.title)
@@ -505,17 +534,22 @@ private struct TrackRow: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
 
-                    Text("\(match.track.artist) • \(match.track.bpm) BPM • \(match.track.genre)")
+                    Text("\(match.track.artist) • \(match.adjustment.originalBPM) -> \(match.adjustment.adjustedBPM) BPM • \(match.track.genre)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    Text(match.alignment.mode.title)
+                    Text("1:1 tempo-adjusted \(match.adjustment.speedChangeLabel)")
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(.secondary)
 
-                    Text(match.track.source.title)
+                    Text("\(match.track.source.title) • \(match.track.rights.status.title)")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+
+                    Text(match.matchReason)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
                 }
 
                 Spacer()
@@ -545,9 +579,9 @@ private struct SyncBar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("Beat alignment")
+                Text("Tempo fit")
                 Spacer()
-                Text("\(match.tempoDistance) BPM delta")
+                Text(match.adjustment.speedChangeLabel)
                     .monospacedDigit()
             }
             .font(.caption)
@@ -559,7 +593,7 @@ private struct SyncBar: View {
                         .fill(Color(.secondarySystemGroupedBackground))
 
                     Capsule()
-                        .fill(match.tempoDistance <= 6 ? Color.green : Color.orange)
+                        .fill(abs(match.adjustment.speedChangePercent) <= 6 ? Color.green : Color.orange)
                         .frame(width: max(10, proxy.size.width * CGFloat(match.score) / 100))
 
                     ForEach(0..<8, id: \.self) { index in

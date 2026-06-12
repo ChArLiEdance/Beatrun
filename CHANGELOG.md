@@ -2,12 +2,38 @@
 
 All notable Beatrun uploads are recorded here.
 
+## 2026-06-12 - Competition MVP 1:1 tempo matching
+
+### Added
+
+- Added debounced automatic music rediscovery when cadence or music type changes.
+- Added automatic best-match selection after rediscovery so cadence changes switch to the most suitable preview track.
+- Added an auto-match status line to the discovery panel.
+- Added an offline demo catalog with explicit beat-grid offsets, grid confidence, and audio rights labels.
+- Added match-reason and copyright-status details to the discovery and sync UI.
+- Added README, demo-catalog, and dev-log documentation for the competition MVP.
+
+### Changed
+
+- Replaced the legacy alternate-tempo prototype with 1:1 BPM matching only.
+- Added +/-10% tempo-adjustment filtering so recommendations only include legal 1:1 matches.
+- Updated generated backing-loop playback to use the adjusted BPM for the selected target cadence.
+
+### Verified
+
+- Built successfully with `xcodebuild -project Beatrun.xcodeproj -scheme Beatrun -configuration Debug -destination 'generic/platform=iOS Simulator' build`.
+- Built, installed, launched, and screenshot-verified on the iPhone 17 iOS 26.5 simulator.
+
+### Risk
+
+- Demo audio is locally generated for competition safety; real royalty-free or CC audio import remains future work.
+
 ## 2026-05-10 - Synced playback start
 
 ### Added
 
 - Added a synced playback-start prototype that delays the first metronome click by the selected track's beat-alignment offset.
-- Added visible playback sync status, alignment mode, and start-offset details to the preview panel.
+- Added visible playback sync status and start-offset details to the preview panel.
 
 ### Verified
 
@@ -31,9 +57,9 @@ All notable Beatrun uploads are recorded here.
 
 ### Added
 
-- Added prototype beat-alignment analysis for direct, double-time, and half-time matching.
-- Added alignment details to the playback preview, including match mode, confidence, phase offset, BPM delta, and beat grid visualization.
-- Added mock 90 BPM tracks to test double-time cadence matching.
+- Added the original prototype beat-alignment analysis.
+- Added alignment details to the playback preview, including confidence, phase offset, BPM delta, and beat grid visualization.
+- Added early low-BPM test tracks for alternate-tempo experiments. These were removed from the competition MVP on 2026-06-12.
 - Added a generated backing music loop so prototype playback includes both music and metronome audio.
 - Added separate volume controls for generated music and metronome click.
 

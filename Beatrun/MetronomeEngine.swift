@@ -19,12 +19,12 @@ final class MetronomeEngine {
     private(set) var audioStatus = "Ready"
     private(set) var audioError: String?
     private(set) var volume = 0.75
-    private(set) var musicStatus = "Generated loop ready"
+    private(set) var musicStatus = "Offline demo loop ready"
     private(set) var musicVolume = 0.45
     private(set) var selectedTrackTitle = "No track"
     private(set) var syncStatus = "Ready to sync"
     private(set) var syncOffsetMilliseconds = 0
-    private(set) var syncMode = "Direct"
+    private(set) var syncMode = "1:1"
 
     @ObservationIgnored private var timer: Timer?
     @ObservationIgnored private var syncStartTask: Task<Void, Never>?
@@ -48,8 +48,8 @@ final class MetronomeEngine {
             beatCount = 0
             audioError = nil
             audioStatus = "Syncing"
-            musicStatus = backingBuffer == nil ? "No backing loop" : "Backing loop playing"
-            syncStatus = syncOffsetMilliseconds == 0 ? "Locked on start" : "Waiting \(syncOffsetMilliseconds) ms for beat alignment"
+            musicStatus = backingBuffer == nil ? "No backing loop" : "Tempo-adjusted demo loop playing"
+            syncStatus = syncOffsetMilliseconds == 0 ? "Locked on start" : "Waiting \(syncOffsetMilliseconds) ms for tempo sync"
             startBackingLoop()
             beginSyncedClickLoop()
         } catch {
@@ -62,7 +62,7 @@ final class MetronomeEngine {
     func stop() {
         isRunning = false
         audioStatus = audioError == nil ? "Ready" : "Audio unavailable"
-        musicStatus = backingBuffer == nil ? "No backing loop" : "Generated loop ready"
+        musicStatus = backingBuffer == nil ? "No backing loop" : "Offline demo loop ready"
         syncStatus = "Ready to sync"
         syncStartTask?.cancel()
         syncStartTask = nil
@@ -84,18 +84,29 @@ final class MetronomeEngine {
 
     func setBackingTrack(_ match: TrackMatch) {
         selectedTrackTitle = match.track.title
-        syncOffsetMilliseconds = match.alignment.phaseOffsetMilliseconds
-        syncMode = match.alignment.mode.title
+        syncOffsetMilliseconds = match.adjustment.phaseOffsetMilliseconds
+        syncMode = "1:1 \(match.adjustment.speedChangeLabel)"
         backingBuffer = Self.makeBackingLoopBuffer(
             track: match.track,
-            alignment: match.alignment,
+            adjustment: match.adjustment,
             format: audioFormat
         )
-        musicStatus = isRunning ? "Backing loop playing" : "Generated loop ready"
+        musicStatus = isRunning ? "Tempo-adjusted demo loop playing" : "Offline demo loop ready"
 
         if isRunning {
             startBackingLoop()
             beginSyncedClickLoop()
+        }
+    }
+
+    func clearBackingTrack() {
+        selectedTrackTitle = "No legal match"
+        syncOffsetMilliseconds = 0
+        syncMode = "1:1"
+        backingBuffer = nil
+        musicStatus = "No backing loop"
+        if isRunning {
+            backingNode.stop()
         }
     }
 
@@ -111,7 +122,7 @@ final class MetronomeEngine {
             guard !Task.isCancelled else { return }
             playClick()
             audioStatus = "Playing"
-            syncStatus = "Locked with \(syncMode) alignment"
+            syncStatus = "Locked with \(syncMode) tempo match"
             restartTimer()
         }
     }
@@ -197,11 +208,11 @@ final class MetronomeEngine {
 
     private static func makeBackingLoopBuffer(
         track: RunningTrack,
-        alignment: BeatAlignment,
+        adjustment: TempoAdjustment,
         format: AVAudioFormat
     ) -> AVAudioPCMBuffer {
         let beatsPerLoop = 8
-        let beatInterval = 60.0 / Double(track.bpm)
+        let beatInterval = 60.0 / Double(adjustment.adjustedBPM)
         let duration = beatInterval * Double(beatsPerLoop)
         let sampleRate = format.sampleRate
         let frameCount = AVAudioFrameCount(duration * sampleRate)
@@ -229,7 +240,7 @@ final class MetronomeEngine {
             let bassEnvelope = max(0, 1.0 - beatPhase * 1.6)
             let bass = sin(2.0 * .pi * bassFrequency * time) * bassEnvelope * 0.2
             let pad = sin(2.0 * .pi * padFrequency * time) * 0.055
-            let syncPulse = alignment.mode == .doubleTime ? sin(2.0 * .pi * Double(alignment.effectiveBPM) / 60.0 * time) * 0.035 : 0
+            let syncPulse = sin(2.0 * .pi * Double(adjustment.targetCadence) / 60.0 * time) * 0.025
 
             let sample = (kick + snare + hat + bass + pad + syncPulse) * energy
             channel[frame] = Float(max(-0.95, min(0.95, sample)))

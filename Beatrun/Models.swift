@@ -9,18 +9,18 @@ enum VocalPreference: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .instrumental:
-            "Pure"
+            "Instrumental"
         case .vocal:
-            "Vocal"
+            "Vocal-style"
         }
     }
 
     var description: String {
         switch self {
         case .instrumental:
-            "Instrumental tracks with a clear beat."
+            "Instrumental demo loops with a clear 1:1 beat."
         case .vocal:
-            "Songs with lyrics and stable rhythm."
+            "Vocal-style demo metadata with generated safe playback."
         }
     }
 }
@@ -31,14 +31,32 @@ enum MusicSource: String, Hashable {
     var title: String {
         switch self {
         case .generatedPreview:
-            "Generated Preview"
+            "Offline Demo"
         }
     }
 
     var usageNote: String {
         switch self {
         case .generatedPreview:
-            "Local generated audio for prototype testing."
+            "Only local generated demo audio is used. No commercial music is downloaded, scraped, or redistributed."
+        }
+    }
+}
+
+enum AudioRightsStatus: String, Hashable {
+    case originalGenerated
+
+    var title: String {
+        switch self {
+        case .originalGenerated:
+            "Generated in app"
+        }
+    }
+
+    var note: String {
+        switch self {
+        case .originalGenerated:
+            "Safe for demo playback because the loop is synthesized locally from metadata."
         }
     }
 }
@@ -56,7 +74,7 @@ enum DiscoveryPhase: Equatable {
         case .searching:
             "Searching"
         case .analyzing:
-            "Analyzing beats"
+            "Checking tempo fit"
         case .failed:
             "Search failed"
         }
@@ -69,10 +87,23 @@ enum DiscoveryPhase: Equatable {
         case .searching:
             "magnifyingglass"
         case .analyzing:
-            "waveform"
+            "speedometer"
         case .failed:
             "exclamationmark.triangle.fill"
         }
+    }
+}
+
+struct AudioRights: Hashable {
+    let status: AudioRightsStatus
+    let licenseName: String
+    let attribution: String
+    let sourceDescription: String
+    let sourceLink: String
+    let allowsTempoAdjustment: Bool
+
+    var tempoAdjustmentLabel: String {
+        allowsTempoAdjustment ? "Tempo change allowed" : "Tempo change not allowed"
     }
 }
 
@@ -85,100 +116,88 @@ struct RunningTrack: Identifiable, Hashable {
     let genre: String
     let energy: Int
     let beatConfidence: Double
+    let downbeatOffsetMilliseconds: Int
+    let beatGridSource: String
+    let rights: AudioRights
     let source: MusicSource = .generatedPreview
 
     func tempoDistance(to cadence: Int) -> Int {
-        BeatAlignment.analyze(track: self, cadence: cadence).bpmDelta
+        TempoAdjustment.analyze(track: self, cadence: cadence)?.bpmDelta ?? Int.max
     }
 
     func matchScore(for cadence: Int) -> Int {
-        BeatAlignment.analyze(track: self, cadence: cadence).score
+        TempoAdjustment.analyze(track: self, cadence: cadence)?.score ?? 0
     }
 
     func alignmentOffsetMilliseconds(for cadence: Int) -> Int {
-        BeatAlignment.analyze(track: self, cadence: cadence).phaseOffsetMilliseconds
+        TempoAdjustment.analyze(track: self, cadence: cadence)?.phaseOffsetMilliseconds ?? 0
     }
 }
 
-enum TempoMatchMode: String {
-    case direct
-    case doubleTime
-    case halfTime
+struct TempoAdjustment: Hashable {
+    static let maximumAdjustmentPercent = 10.0
 
-    var title: String {
-        switch self {
-        case .direct:
-            "Direct"
-        case .doubleTime:
-            "Double-time"
-        case .halfTime:
-            "Half-time"
-        }
-    }
-
-    var description: String {
-        switch self {
-        case .direct:
-            "Metronome clicks follow the song beat."
-        case .doubleTime:
-            "Two running steps fit inside each song beat."
-        case .halfTime:
-            "One running step spans two fast song beats."
-        }
-    }
-}
-
-struct BeatAlignment: Hashable {
-    let mode: TempoMatchMode
-    let effectiveBPM: Int
+    let originalBPM: Int
+    let adjustedBPM: Int
+    let targetCadence: Int
+    let speedRatio: Double
+    let speedChangePercent: Double
     let bpmDelta: Int
     let phaseOffsetMilliseconds: Int
     let confidence: Double
 
     var score: Int {
-        let tempoScore = max(0, 100 - bpmDelta * 4)
+        let tempoScore = max(0, 100 - Int(abs(speedChangePercent) * 4.5))
         let confidenceScore = Int(confidence * 100)
         return min(100, Int(Double(tempoScore) * 0.65 + Double(confidenceScore) * 0.35))
     }
 
     var qualityLabel: String {
-        if bpmDelta <= 2 {
-            "Locked"
-        } else if bpmDelta <= 6 {
-            "Close"
+        if abs(speedChangePercent) <= 2 {
+            "Native fit"
+        } else if abs(speedChangePercent) <= 6 {
+            "Clean retime"
         } else {
-            "Needs analysis"
+            "Edge retime"
         }
     }
 
+    var speedChangeLabel: String {
+        let sign = speedChangePercent >= 0 ? "+" : ""
+        return "\(sign)\(String(format: "%.1f", speedChangePercent))%"
+    }
+
     var metronomeIntervalMilliseconds: Int {
-        Int((60.0 / Double(effectiveBPM) * 1_000).rounded())
+        Int((60.0 / Double(max(1, targetCadence)) * 1_000).rounded())
     }
 
     var songBeatIntervalMilliseconds: Int {
-        Int((60.0 / Double(max(1, effectiveBPM)) * 1_000).rounded())
+        Int((60.0 / Double(max(1, adjustedBPM)) * 1_000).rounded())
     }
 
-    static func analyze(track: RunningTrack, cadence: Int) -> BeatAlignment {
-        let candidates: [(TempoMatchMode, Int)] = [
-            (.direct, track.bpm),
-            (.doubleTime, track.bpm * 2),
-            (.halfTime, max(1, track.bpm / 2))
-        ]
+    var isAllowed: Bool {
+        abs(speedChangePercent) <= Self.maximumAdjustmentPercent
+    }
 
-        let best = candidates.min { first, second in
-            abs(first.1 - cadence) < abs(second.1 - cadence)
-        } ?? (.direct, track.bpm)
+    static func analyze(track: RunningTrack, cadence: Int) -> TempoAdjustment? {
+        guard track.rights.allowsTempoAdjustment else { return nil }
+        let ratio = Double(cadence) / Double(track.bpm)
+        let percent = (ratio - 1.0) * 100.0
+        guard abs(percent) <= maximumAdjustmentPercent else { return nil }
 
-        let bpmDelta = abs(best.1 - cadence)
-        let confidencePenalty = min(0.45, Double(bpmDelta) * 0.035)
-        let adjustedConfidence = min(0.99, max(0.1, track.beatConfidence - confidencePenalty))
-        let titleSeed = track.title.unicodeScalars.reduce(0) { $0 + Int($1.value) }
-        let phaseOffset = min(96, max(4, (titleSeed % 42) + bpmDelta * 5))
+        let adjustedBPM = Int((Double(track.bpm) * ratio).rounded())
+        let bpmDelta = abs(adjustedBPM - cadence)
+        let adjustmentPenalty = min(0.38, abs(percent) / maximumAdjustmentPercent * 0.18)
+        let adjustedConfidence = min(0.99, max(0.1, track.beatConfidence - adjustmentPenalty))
+        let phaseCorrection = Int((abs(percent) * 1.8).rounded())
+        let phaseOffset = min(140, max(0, track.downbeatOffsetMilliseconds + phaseCorrection))
 
-        return BeatAlignment(
-            mode: best.0,
-            effectiveBPM: best.1,
+        return TempoAdjustment(
+            originalBPM: track.bpm,
+            adjustedBPM: adjustedBPM,
+            targetCadence: cadence,
+            speedRatio: ratio,
+            speedChangePercent: percent,
             bpmDelta: bpmDelta,
             phaseOffsetMilliseconds: phaseOffset,
             confidence: adjustedConfidence
@@ -189,41 +208,60 @@ struct BeatAlignment: Hashable {
 struct TrackMatch: Identifiable {
     let track: RunningTrack
     let cadence: Int
+    let adjustment: TempoAdjustment
 
     var id: UUID { track.id }
-    var alignment: BeatAlignment { BeatAlignment.analyze(track: track, cadence: cadence) }
-    var score: Int { alignment.score }
-    var offsetMilliseconds: Int { alignment.phaseOffsetMilliseconds }
-    var tempoDistance: Int { alignment.bpmDelta }
+    var score: Int { adjustment.score }
+    var offsetMilliseconds: Int { adjustment.phaseOffsetMilliseconds }
+    var tempoDistance: Int { adjustment.bpmDelta }
 
     var syncLabel: String {
-        alignment.qualityLabel
+        adjustment.qualityLabel
+    }
+
+    var matchReason: String {
+        "1:1 retime \(adjustment.speedChangeLabel), \(Int(adjustment.confidence * 100))% beat confidence"
     }
 }
 
-struct MockMusicCatalog {
+struct DemoMusicCatalog {
+    private static let generatedRights = AudioRights(
+        status: .originalGenerated,
+        licenseName: "Original generated demo audio",
+        attribution: "Generated by Beatrun's local AVFoundation synthesis engine.",
+        sourceDescription: "No external recording. Track metadata drives a local drum/bass loop in MetronomeEngine.swift.",
+        sourceLink: "Beatrun/MetronomeEngine.swift",
+        allowsTempoAdjustment: true
+    )
+
     static let tracks: [RunningTrack] = [
-        RunningTrack(title: "Night Circuit", artist: "Pulse Atlas", bpm: 160, preference: .instrumental, genre: "Electronic", energy: 82, beatConfidence: 0.94),
-        RunningTrack(title: "Forward Motion", artist: "Lane Echo", bpm: 166, preference: .instrumental, genre: "Synth", energy: 78, beatConfidence: 0.91),
-        RunningTrack(title: "Ground Pulse", artist: "Lowline", bpm: 90, preference: .instrumental, genre: "Downtempo", energy: 76, beatConfidence: 0.93),
-        RunningTrack(title: "Steel Horizon", artist: "Metric Drift", bpm: 172, preference: .instrumental, genre: "Breakbeat", energy: 88, beatConfidence: 0.89),
-        RunningTrack(title: "Clean Stride", artist: "Northline", bpm: 180, preference: .instrumental, genre: "House", energy: 90, beatConfidence: 0.97),
-        RunningTrack(title: "Blue Relay", artist: "Aster Beat", bpm: 186, preference: .instrumental, genre: "Dance", energy: 86, beatConfidence: 0.9),
-        RunningTrack(title: "Step Into Light", artist: "Mira Lane", bpm: 158, preference: .vocal, genre: "Pop", energy: 74, beatConfidence: 0.86),
-        RunningTrack(title: "Hold the Pace", artist: "The Split Times", bpm: 168, preference: .vocal, genre: "Indie Pop", energy: 79, beatConfidence: 0.88),
-        RunningTrack(title: "Keep Breathing", artist: "Cora Vale", bpm: 176, preference: .vocal, genre: "Pop Rock", energy: 84, beatConfidence: 0.87),
-        RunningTrack(title: "Every Other Step", artist: "Vera North", bpm: 90, preference: .vocal, genre: "Alt Pop", energy: 73, beatConfidence: 0.9),
-        RunningTrack(title: "Run the Line", artist: "Bright Signal", bpm: 180, preference: .vocal, genre: "Dance Pop", energy: 91, beatConfidence: 0.92),
-        RunningTrack(title: "After the Turn", artist: "City Frame", bpm: 188, preference: .vocal, genre: "Alternative", energy: 83, beatConfidence: 0.85)
+        RunningTrack(title: "Easy Warmup", artist: "Beatrun Lab", bpm: 144, preference: .instrumental, genre: "Electronic", energy: 68, beatConfidence: 0.92, downbeatOffsetMilliseconds: 22, beatGridSource: "Curated 1:1 demo grid", rights: generatedRights),
+        RunningTrack(title: "Night Circuit", artist: "Beatrun Lab", bpm: 160, preference: .instrumental, genre: "Electronic", energy: 82, beatConfidence: 0.94, downbeatOffsetMilliseconds: 18, beatGridSource: "Curated 1:1 demo grid", rights: generatedRights),
+        RunningTrack(title: "Forward Motion", artist: "Beatrun Lab", bpm: 166, preference: .instrumental, genre: "Synth", energy: 78, beatConfidence: 0.91, downbeatOffsetMilliseconds: 32, beatGridSource: "Curated 1:1 demo grid", rights: generatedRights),
+        RunningTrack(title: "Steel Horizon", artist: "Beatrun Lab", bpm: 172, preference: .instrumental, genre: "Breakbeat", energy: 88, beatConfidence: 0.89, downbeatOffsetMilliseconds: 41, beatGridSource: "Curated 1:1 demo grid", rights: generatedRights),
+        RunningTrack(title: "Clean Stride", artist: "Beatrun Lab", bpm: 180, preference: .instrumental, genre: "House", energy: 90, beatConfidence: 0.97, downbeatOffsetMilliseconds: 8, beatGridSource: "Curated 1:1 demo grid", rights: generatedRights),
+        RunningTrack(title: "Blue Relay", artist: "Beatrun Lab", bpm: 188, preference: .instrumental, genre: "Dance", energy: 86, beatConfidence: 0.9, downbeatOffsetMilliseconds: 36, beatGridSource: "Curated 1:1 demo grid", rights: generatedRights),
+        RunningTrack(title: "Final Kick", artist: "Beatrun Lab", bpm: 198, preference: .instrumental, genre: "Dance", energy: 92, beatConfidence: 0.88, downbeatOffsetMilliseconds: 46, beatGridSource: "Curated 1:1 demo grid", rights: generatedRights),
+        RunningTrack(title: "Step Into Light", artist: "Beatrun Lab", bpm: 146, preference: .vocal, genre: "Pop", energy: 72, beatConfidence: 0.86, downbeatOffsetMilliseconds: 44, beatGridSource: "Vocal-style 1:1 demo grid", rights: generatedRights),
+        RunningTrack(title: "Hold the Pace", artist: "Beatrun Lab", bpm: 158, preference: .vocal, genre: "Indie Pop", energy: 79, beatConfidence: 0.88, downbeatOffsetMilliseconds: 27, beatGridSource: "Vocal-style 1:1 demo grid", rights: generatedRights),
+        RunningTrack(title: "Keep Breathing", artist: "Beatrun Lab", bpm: 168, preference: .vocal, genre: "Pop Rock", energy: 84, beatConfidence: 0.87, downbeatOffsetMilliseconds: 35, beatGridSource: "Vocal-style 1:1 demo grid", rights: generatedRights),
+        RunningTrack(title: "Run the Line", artist: "Beatrun Lab", bpm: 180, preference: .vocal, genre: "Dance Pop", energy: 91, beatConfidence: 0.92, downbeatOffsetMilliseconds: 12, beatGridSource: "Vocal-style 1:1 demo grid", rights: generatedRights),
+        RunningTrack(title: "After the Turn", artist: "Beatrun Lab", bpm: 190, preference: .vocal, genre: "Alternative", energy: 83, beatConfidence: 0.85, downbeatOffsetMilliseconds: 52, beatGridSource: "Vocal-style 1:1 demo grid", rights: generatedRights),
+        RunningTrack(title: "Finish Lights", artist: "Beatrun Lab", bpm: 198, preference: .vocal, genre: "Dance Pop", energy: 89, beatConfidence: 0.86, downbeatOffsetMilliseconds: 39, beatGridSource: "Vocal-style 1:1 demo grid", rights: generatedRights)
     ]
 
     static func recommendations(cadence: Int, preference: VocalPreference) -> [TrackMatch] {
         tracks
             .filter { $0.preference == preference }
-            .map { TrackMatch(track: $0, cadence: cadence) }
+            .compactMap { track in
+                guard let adjustment = TempoAdjustment.analyze(track: track, cadence: cadence) else {
+                    return nil
+                }
+                return TrackMatch(track: track, cadence: cadence, adjustment: adjustment)
+            }
             .sorted {
                 if $0.score == $1.score {
-                    return $0.tempoDistance < $1.tempoDistance
+                    return abs($0.adjustment.speedChangePercent) < abs($1.adjustment.speedChangePercent)
                 }
                 return $0.score > $1.score
             }
@@ -234,7 +272,7 @@ struct MusicDiscoveryService {
     func discover(cadence: Int, preference: VocalPreference) async throws -> [TrackMatch] {
         try await Task.sleep(for: .milliseconds(450))
         try Task.checkCancellation()
-        let matches = MockMusicCatalog.recommendations(cadence: cadence, preference: preference)
+        let matches = DemoMusicCatalog.recommendations(cadence: cadence, preference: preference)
         try await Task.sleep(for: .milliseconds(350))
         try Task.checkCancellation()
         return matches
