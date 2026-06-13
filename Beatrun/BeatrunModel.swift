@@ -10,9 +10,16 @@ final class BeatrunModel {
 
     private(set) var recommendations: [TrackMatch] = []
     private(set) var discoveryPhase: DiscoveryPhase = .ready
-    private(set) var discoveryMessage = "Offline demo catalog ready."
-    private(set) var autoMatchMessage = "Best match updates when cadence or music type changes."
+    private(set) var discoveryMessage = "Music library matching ready."
+    private(set) var autoMatchMessage = "Best match updates when cadence, music type, or library access changes."
     private(set) var watchSyncStatus = "Watch sync starting"
+    private(set) var musicLibraryState: MusicLibraryAccessState = .notDetermined
+    private(set) var musicLibraryMessage = MusicLibraryAccessState.notDetermined.detail
+    private(set) var scannedLibraryTrackCount = 0
+    private(set) var tracksNeedingBPMCount = 0
+    private(set) var metadataOnlyTrackCount = 0
+    private(set) var retimeReadyTrackCount = 0
+    private(set) var usingStarterFallback = true
     private(set) var searchCount = 0
     var selectedMatch: TrackMatch?
     let metronome = MetronomeEngine()
@@ -26,10 +33,12 @@ final class BeatrunModel {
     }
 
     @ObservationIgnored private let discoveryService = MusicDiscoveryService()
+    @ObservationIgnored private let musicLibraryService = MusicLibraryService()
     @ObservationIgnored private let watchSyncCoordinator = WatchSyncCoordinator()
     @ObservationIgnored private var discoveryTask: Task<Void, Never>?
     @ObservationIgnored private var scheduledDiscoveryTask: Task<Void, Never>?
     @ObservationIgnored private var watchStateTimer: Timer?
+    @ObservationIgnored private var authorizedLibraryTracks: [RunningTrack] = []
 
     init() {
         configureWatchSync()
@@ -71,6 +80,22 @@ final class BeatrunModel {
         startDiscovery(reason: "Manual search requested.", preferBestMatch: true)
     }
 
+    func requestMusicLibraryAccess() {
+        discoveryTask?.cancel()
+        scheduledDiscoveryTask?.cancel()
+        searchCount += 1
+        discoveryPhase = .searching
+        discoveryMessage = "Requesting system music library permission."
+        autoMatchMessage = "Only tracks with BPM metadata and legal local playback are eligible."
+
+        discoveryTask = Task {
+            let snapshot = await musicLibraryService.requestSnapshot(preference: vocalPreference)
+            guard !Task.isCancelled else { return }
+            applyMusicLibrarySnapshot(snapshot)
+            startDiscovery(reason: "Music library scan completed.", preferBestMatch: true)
+        }
+    }
+
     func togglePlayback() {
         metronome.toggle()
         updateWatchTicker()
@@ -98,9 +123,29 @@ final class BeatrunModel {
     }
 
     func refreshRecommendations() {
-        recommendations = DemoMusicCatalog.recommendations(cadence: cadence, preference: vocalPreference)
+        recommendations = AuthorizedMusicCatalog.recommendations(cadence: cadence, preference: vocalPreference)
         applySelectionAfterDiscovery(preferBestMatch: true)
     }
+
+#if DEBUG
+    func simulateDeniedMusicLibraryForDemo() {
+        let snapshot = MusicLibrarySnapshot(
+            accessState: .denied,
+            tracks: [],
+            scannedCount: 0,
+            tracksNeedingBPM: 0,
+            metadataOnlyCount: 0,
+            retimeReadyCount: 0
+        )
+        applyMusicLibrarySnapshot(snapshot)
+        recommendations = AuthorizedMusicCatalog.recommendations(cadence: cadence, preference: vocalPreference)
+        discoveryPhase = .ready
+        discoveryMessage = "Music library permission denied. Showing CC/manual-BPM fallback matches."
+        autoMatchMessage = "No system tracks are scanned until permission is granted."
+        applySelectionAfterDiscovery(preferBestMatch: true)
+        publishWatchState()
+    }
+#endif
 
     func publishWatchState() {
         let payload = makeWatchPayload()
@@ -128,14 +173,21 @@ final class BeatrunModel {
         discoveryTask?.cancel()
         let cadence = cadence
         let preference = vocalPreference
+        let libraryTracks = authorizedLibraryTracks
+        let allowStarterFallback = usingStarterFallback
         searchCount += 1
 
         discoveryTask = Task {
             discoveryPhase = .searching
-            discoveryMessage = "\(reason) Finding \(preference.title.lowercased()) tracks near \(cadence) SPM."
+            discoveryMessage = "\(reason) Finding authorized \(preference.title.lowercased()) tracks near \(cadence) SPM."
 
             do {
-                let matches = try await discoveryService.discover(cadence: cadence, preference: preference)
+                let matches = try await discoveryService.discover(
+                    cadence: cadence,
+                    preference: preference,
+                    libraryTracks: libraryTracks,
+                    allowStarterFallback: allowStarterFallback
+                )
                 guard !Task.isCancelled else { return }
                 discoveryPhase = .analyzing
                 discoveryMessage = "Checking 1:1 BPM fit and tempo adjustment limits."
@@ -146,7 +198,7 @@ final class BeatrunModel {
                 recommendations = matches
                 applySelectionAfterDiscovery(preferBestMatch: preferBestMatch)
                 discoveryPhase = .ready
-                discoveryMessage = "Found \(matches.count) offline demo tracks."
+                discoveryMessage = discoveryReadyMessage(matchCount: matches.count)
                 publishWatchState()
             } catch is CancellationError {
                 return
@@ -156,6 +208,38 @@ final class BeatrunModel {
                 publishWatchState()
             }
         }
+    }
+
+    private func applyMusicLibrarySnapshot(_ snapshot: MusicLibrarySnapshot) {
+        musicLibraryState = snapshot.accessState
+        authorizedLibraryTracks = snapshot.tracks
+        scannedLibraryTrackCount = snapshot.scannedCount
+        tracksNeedingBPMCount = snapshot.tracksNeedingBPM
+        metadataOnlyTrackCount = snapshot.metadataOnlyCount
+        retimeReadyTrackCount = snapshot.retimeReadyCount
+        usingStarterFallback = snapshot.tracks.isEmpty
+        musicLibraryMessage = libraryMessage(for: snapshot)
+    }
+
+    private func libraryMessage(for snapshot: MusicLibrarySnapshot) -> String {
+        switch snapshot.accessState {
+        case .authorized:
+            if snapshot.tracks.isEmpty {
+                "Library authorized, but no BPM-tagged local tracks were found. Using CC/manual metadata fallback."
+            } else {
+                "\(snapshot.retimeReadyCount) retime-ready local tracks, \(snapshot.metadataOnlyCount) metadata-only tracks, \(snapshot.tracksNeedingBPM) need BPM."
+            }
+        default:
+            snapshot.accessState.detail
+        }
+    }
+
+    private func discoveryReadyMessage(matchCount: Int) -> String {
+        if usingStarterFallback {
+            "Found \(matchCount) CC/manual-BPM fallback matches. Scan the library for user-authorized tracks."
+        }
+
+        return "Found \(matchCount) user-authorized library matches."
     }
 
     private func applySelectionAfterDiscovery(preferBestMatch: Bool) {
@@ -247,7 +331,7 @@ final class BeatrunModel {
             originalBPM: current?.adjustment.originalBPM ?? 0,
             adjustedBPM: current?.adjustment.adjustedBPM ?? cadence,
             speedChangeLabel: current?.adjustment.speedChangeLabel ?? "+0.0%",
-            rightsStatus: current?.track.rights.status.title ?? "Offline demo audio",
+            rightsStatus: current.map { "\($0.track.source.title) • \($0.track.rights.status.title)" } ?? "Music library",
             updatedAt: Date()
         )
     }

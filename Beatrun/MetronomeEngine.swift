@@ -19,7 +19,7 @@ final class MetronomeEngine {
     private(set) var audioStatus = "Ready"
     private(set) var audioError: String?
     private(set) var volume = 0.75
-    private(set) var musicStatus = "Offline demo loop ready"
+    private(set) var musicStatus = "Music library ready"
     private(set) var musicVolume = 0.45
     private(set) var selectedTrackTitle = "No track"
     private(set) var upcomingTrackTitle = "No upcoming track"
@@ -63,7 +63,7 @@ final class MetronomeEngine {
             beatCount = 0
             audioError = nil
             audioStatus = "Syncing"
-            musicStatus = currentBackingBuffer == nil ? "No backing loop" : "Tempo-adjusted demo loop playing"
+            musicStatus = currentBackingBuffer == nil ? "Metronome only - authorized audio required" : "Authorized fallback audio playing"
             syncStatus = syncOffsetMilliseconds == 0 ? "Locked on start" : "Waiting \(syncOffsetMilliseconds) ms for tempo sync"
             startCurrentLoop()
             scheduleTransitionCycle(fromBeat: beatCount)
@@ -78,10 +78,10 @@ final class MetronomeEngine {
     func stop() {
         isRunning = false
         audioStatus = audioError == nil ? "Ready" : "Audio unavailable"
-        musicStatus = currentBackingBuffer == nil ? "No backing loop" : "Offline demo loop ready"
+        musicStatus = currentMatch == nil ? "No authorized music selected" : "Music library ready"
         syncStatus = "Ready to sync"
         isCrossfading = false
-        transitionStatus = nextTrackReady ? "Next track preloaded" : "No transition scheduled"
+        transitionStatus = nextTrackReady ? "Next track metadata ready" : "No transition scheduled"
         transitionBeatsRemaining = 0
         transitionStartBeat = nil
         transitionEndBeat = nil
@@ -111,11 +111,12 @@ final class MetronomeEngine {
         selectedTrackTitle = current?.track.title ?? "No legal match"
         syncOffsetMilliseconds = current?.adjustment.phaseOffsetMilliseconds ?? 0
         syncMode = current.map { "1:1 \($0.adjustment.speedChangeLabel)" } ?? "1:1"
-        currentBackingBuffer = current.map { Self.makeBackingLoopBuffer(track: $0.track, adjustment: $0.adjustment, format: audioFormat) }
+        currentBackingBuffer = current.flatMap { backingBuffer(for: $0) }
+        musicStatus = current.map { $0.track.canUseForTempoAdjustedPlayback ? "Local library track selected" : "Metadata match selected" } ?? "No authorized music selected"
 
         if let current {
             prepareUpcomingTrack(after: current)
-            queueStatus = nextTrackReady ? "Current and next tracks are legal 1:1 matches" : "No legal upcoming track"
+            queueStatus = nextTrackReady ? "Current and next tracks are legal 1:1 metadata matches" : "No legal upcoming track"
         } else {
             upcomingMatch = nil
             upcomingTrackTitle = "No upcoming track"
@@ -128,13 +129,13 @@ final class MetronomeEngine {
             startCurrentLoop()
             scheduleTransitionCycle(fromBeat: beatCount)
         } else {
-            transitionStatus = nextTrackReady ? "Next track preloaded" : "No transition scheduled"
+            transitionStatus = nextTrackReady ? "Next track metadata ready" : "No transition scheduled"
         }
     }
 
     func clearBackingTrack() {
         setPlaybackQueue(current: nil, candidates: [])
-        musicStatus = "No backing loop"
+        musicStatus = "No authorized music selected"
         if isRunning {
             currentBackingNode.stop()
             nextBackingNode.stop()
@@ -198,7 +199,7 @@ final class MetronomeEngine {
 
         upcomingMatch = next
         upcomingTrackTitle = next.track.title
-        nextBackingBuffer = Self.makeBackingLoopBuffer(track: next.track, adjustment: next.adjustment, format: audioFormat)
+        nextBackingBuffer = backingBuffer(for: next)
         nextTrackReady = true
     }
 
@@ -261,8 +262,11 @@ final class MetronomeEngine {
     }
 
     private func beginCrossfade() {
-        guard let nextBackingBuffer else { return }
         isCrossfading = true
+        guard let nextBackingBuffer else {
+            musicStatus = "Metadata transition in progress"
+            return
+        }
         nextBackingNode.stop()
         nextBackingNode.scheduleBuffer(nextBackingBuffer, at: nil, options: .loops, completionHandler: nil)
         nextBackingNode.play()
@@ -290,8 +294,8 @@ final class MetronomeEngine {
         }
 
         isCrossfading = false
-        musicStatus = "Tempo-adjusted demo loop playing"
-        queueStatus = nextTrackReady ? "Next track preloaded" : "No legal upcoming track"
+        musicStatus = currentBackingBuffer == nil ? "Music metadata locked" : "Authorized fallback audio playing"
+        queueStatus = nextTrackReady ? "Next track metadata ready" : "No legal upcoming track"
         scheduleTransitionCycle(fromBeat: beatCount)
     }
 
@@ -318,6 +322,18 @@ final class MetronomeEngine {
     private func applyBackingVolumes(current: Double, next: Double) {
         currentBackingNode.volume = Float(musicVolume * min(max(current, 0), 1))
         nextBackingNode.volume = Float(musicVolume * min(max(next, 0), 1))
+    }
+
+    private func backingBuffer(for match: TrackMatch) -> AVAudioPCMBuffer? {
+        guard match.track.source == .generatedPreview else {
+            return nil
+        }
+
+        return Self.makeBackingLoopBuffer(
+            track: match.track,
+            adjustment: match.adjustment,
+            format: audioFormat
+        )
     }
 
     private func prepareAudioIfNeeded() throws {
@@ -391,7 +407,7 @@ final class MetronomeEngine {
         let padFrequency = 220.0 + Double(track.title.count % 5) * 18.0
         for frame in 0..<frames {
             let time = Double(frame) / sampleRate
-            // The generated demo loop is pre-trimmed to the documented beat-grid offset,
+            // Development fallback loops are pre-trimmed to the documented beat-grid offset,
             // so sample zero represents the corrected downbeat for beat-boundary starts.
             let beatPosition = time.truncatingRemainder(dividingBy: duration) / beatInterval
             let beatIndex = Int(beatPosition.rounded(.down))

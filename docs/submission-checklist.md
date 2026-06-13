@@ -26,9 +26,9 @@ Use this checklist for the Qidi-track initial submission and later competition r
 
 - [ ] Problem background: cadence training and rhythm stability
 - [ ] Target users: beginner runners, cadence-training runners, school running groups
-- [ ] Core workflow: cadence selection, legal demo music matching, 1:1 tempo adjustment, synced playback
+- [ ] Core workflow: cadence selection, authorized music-library matching, 1:1 tempo adjustment, synced metronome
 - [ ] Queue workflow: current track, next track, beat countdown, and crossfade state
-- [ ] Watch companion: cadence, sync state, current/next track, transition state, Play/Pause, Stop, and +/-5 cadence controls
+- [ ] Watch standalone workout: target/current cadence, elapsed time, HealthKit metrics, Start/Pause/Resume/End, current/next track, transition state, and +/-5 cadence controls
 - [ ] Innovation points
 - [ ] Technical architecture
 - [ ] Current completed functions
@@ -41,11 +41,12 @@ Use this checklist for the Qidi-track initial submission and later competition r
 - [ ] 2-3 minute script written
 - [ ] Fresh-launch demo recorded
 - [ ] Cadence change demo recorded
-- [ ] Queue transition countdown and crossfade demo recorded
-- [ ] Watch scaffold screen recorded or screenshot captured
+- [ ] Music library permission/fallback screen recorded
+- [ ] Queue transition countdown and crossfade/metadata transition demo recorded
+- [ ] Watch standalone workout screen recorded or screenshot captured
 - [ ] WatchConnectivity limitation explained if a paired simulator/device is not used
 - [ ] Music recommendation and match score explained
-- [ ] Original BPM, adjusted BPM, speed change, and rights status shown
+- [ ] Original BPM, adjusted BPM, speed change, source, analysis mode, and rights status shown
 - [ ] Sync offset and confidence shown
 - [ ] Copyright-safe audio explanation included
 - [ ] Final video exported and checked on another device
@@ -59,14 +60,18 @@ Use this checklist for the Qidi-track initial submission and later competition r
 - [ ] Vocal/instrumental switch refreshes recommendations
 - [ ] Recommendations only include +/-10% 1:1 tempo-adjusted matches
 - [ ] No double-time or half-time matching appears in the demo path
+- [ ] Tracks without BPM metadata are not recommended unless manually tagged
+- [ ] Music library permission denied state has a clear fallback
 - [ ] Metronome volume control works
-- [ ] Backing loop volume control works
+- [ ] Music source/metadata status is clear when local retiming is unavailable
 - [ ] Sync status updates while playing
 - [ ] Next track is visible while current track plays
 - [ ] Transition countdown is visible before crossfade
 - [ ] Crossfade state enters and exits
 - [ ] Beat count does not reset during track transition
-- [ ] Watch app launches and shows cadence, current/next track, sync state, and controls
+- [ ] Watch app launches and shows standalone workout state without iPhone reachability
+- [ ] Watch Start/Pause/Resume/End workout state flow is verified
+- [ ] HealthKit permission path does not crash on simulator
 - [ ] WatchConnectivity command path verified on paired simulator/device or documented as reachability-limited
 - [ ] No placeholder text visible in the main demo path
 - [ ] No crash during a 3-minute continuous demo
@@ -77,8 +82,8 @@ Use this checklist for the Qidi-track initial submission and later competition r
 - [ ] Simulator or real-device model
 - [ ] Demo screen recording
 - [ ] Three to five screenshots
-- [ ] Watch scaffold screenshot
-- [ ] Demo catalog rights table
+- [ ] Watch standalone workout screenshot
+- [ ] Music source/rights table
 - [ ] Short product architecture diagram
 - [ ] Short competitor comparison
 - [ ] Any user interview or survey notes

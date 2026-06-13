@@ -1,5 +1,164 @@
 # Beatrun Development Log
 
+## 2026-06-13 - Watch Standalone Workout and Music Library Matching
+
+### Stage 1: Goal Review and Scope Lock
+
+Completed:
+
+- Read `docs/goal-watch-workout-music-library.md`.
+- Confirmed current code still had generated-loop-first music wording and no HealthKit workout manager.
+- Kept the existing 1:1 BPM, +/-10% tempo limit, queue timing, crossfade state, and WatchConnectivity structures as constraints.
+
+Files reviewed:
+
+- `Beatrun/Models.swift`
+- `Beatrun/BeatrunModel.swift`
+- `Beatrun/MetronomeEngine.swift`
+- `Beatrun/ContentView.swift`
+- `BeatrunWatch/WatchContentView.swift`
+- `BeatrunWatch/WatchPlaybackState.swift`
+- `Beatrun.xcodeproj/project.pbxproj`
+
+Verification:
+
+- `git status --short --branch`
+- `plutil -lint Beatrun.xcodeproj/project.pbxproj`
+
+Remaining risk:
+
+- The goal includes real device behaviors that simulator screenshots cannot fully prove.
+
+Next step:
+
+- Verify on a physical Apple Watch with HealthKit permissions and real Music Library content.
+
+### Stage 2: Music Library Matching
+
+Completed:
+
+- Added source-aware track metadata for Local Library, Apple Music metadata, Imported File, CC Licensed, and development fallback sources.
+- Added `MusicLibraryService` using MediaPlayer permission and `MPMediaQuery.songs()` scanning.
+- Recommendations now prefer authorized library tracks with BPM metadata and local non-DRM asset URLs.
+- Tracks without BPM metadata are counted as Needs BPM and are not recommended.
+- Apple Music/cloud/DRM tracks are treated as metadata-only when no local asset URL is available.
+- Added a DEBUG-only denied-library launch path to verify fallback UI without changing Release behavior.
+
+Files changed:
+
+- `Beatrun/Models.swift`
+- `Beatrun/MusicLibraryService.swift`
+- `Beatrun/BeatrunModel.swift`
+- `Beatrun/ContentView.swift`
+- `Beatrun/MetronomeEngine.swift`
+- `Beatrun.xcodeproj/project.pbxproj`
+
+Verification:
+
+- iOS build succeeded with `/private/tmp/beatrun-library-ios`.
+
+Remaining risk:
+
+- Real user libraries vary; Apple Music DRM/cloud tracks may expose metadata without legal waveform/retiming access.
+- User-imported document picker flow is not yet built; current fallback is CC/manual-BPM starter metadata.
+
+Next step:
+
+- Add user-imported local audio file selection and BPM tagging UI.
+
+### Stage 3: Watch Standalone Workout
+
+Completed:
+
+- Added `WatchWorkoutManager` with HealthKit authorization, `HKWorkoutSession`, `HKLiveWorkoutBuilder`, and CoreMotion cadence updates.
+- Added simulator fallback cadence/elapsed-time behavior when HealthKit or live sensors are unavailable.
+- Added Watch HealthKit entitlements and Info.plist usage descriptions for health read/update and motion cadence.
+- Reworked Watch UI around standalone workout status, target/current cadence, elapsed time, heart rate, active energy, distance, Start/Pause/Resume/End controls, and small connection status.
+- WatchConnectivity status now maps iPhone-unreachable states to Standalone Mode instead of blocking the Watch UI.
+
+Files changed:
+
+- `BeatrunWatch/WatchWorkoutManager.swift`
+- `BeatrunWatch/WatchContentView.swift`
+- `BeatrunWatch/WatchPlaybackState.swift`
+- `BeatrunWatch/BeatrunWatch.entitlements`
+- `Beatrun.xcodeproj/project.pbxproj`
+
+Verification:
+
+- watchOS build succeeded with `/private/tmp/beatrun-library-watch`.
+- `plutil -lint BeatrunWatch/BeatrunWatch.entitlements`
+
+Remaining risk:
+
+- Heart rate, distance, active energy, and live cadence need real Apple Watch validation.
+- Simulator HealthKit authorization/session behavior is not equivalent to a real workout.
+
+Next step:
+
+- Run on a physical Apple Watch, grant HealthKit permissions, start an outdoor running workout, and compare cadence/heart-rate updates.
+
+### Stage 4: Documentation
+
+Completed:
+
+- Updated README with Watch standalone mode, HealthKit/Workout Session scope, music-library permission, DRM limitations, and real-device validation advice.
+- Updated demo catalog from generated-audio wording to CC/manual-BPM starter metadata.
+- Added this log section and CHANGELOG notes.
+
+Files changed:
+
+- `README.md`
+- `CHANGELOG.md`
+- `docs/dev-log.md`
+- `docs/demo-catalog.md`
+
+Verification:
+
+- Documentation reviewed to avoid claiming universal Apple Music retiming, real workout metrics on simulator, or unauthorized commercial music access.
+
+Remaining risk:
+
+- Real HealthKit metrics, live cadence, and Music Library contents still require physical devices and user-granted permissions.
+
+Next step:
+
+- Run a physical Apple Watch workout and a real iPhone music-library scan before public demo recording.
+
+### Stage 5: Final Simulator Verification
+
+Completed:
+
+- Rebuilt the iOS and Watch targets after the final UI/layout changes.
+- Installed and launched the iOS app on an iPhone 17 iOS 26.5 simulator.
+- Installed and launched the Watch app on an Apple Watch Ultra 3 watchOS 26.5 simulator.
+- Captured the requested screenshots:
+  - `/private/tmp/beatrun-library-ios-main.png`
+  - `/private/tmp/beatrun-library-ios-library.png`
+  - `/private/tmp/beatrun-library-ios-workout-sync.png`
+  - `/private/tmp/beatrun-library-watch-standalone.png`
+  - `/private/tmp/beatrun-library-watch-running.png`
+- Verified the Watch standalone screen opens without relying on live iPhone reachability.
+- Verified the normal Watch Start Workout path reaches the Health data permission prompt without crashing.
+- Verified the DEBUG workout demo uses simulator fallback metrics for a running-state screenshot because simulator Health permission pregrant returned `Operation not permitted`.
+
+Verification:
+
+- `xcodebuild -quiet -project Beatrun.xcodeproj -scheme Beatrun -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/beatrun-library-ios build`
+- `xcodebuild -quiet -project Beatrun.xcodeproj -scheme BeatrunWatch -configuration Debug -destination 'generic/platform=watchOS Simulator' -derivedDataPath /private/tmp/beatrun-library-watch build`
+- `plutil -lint Beatrun.xcodeproj/project.pbxproj BeatrunWatch/BeatrunWatch.entitlements`
+- `git diff --check`
+
+Remaining risk:
+
+- The Watch simulator cannot prove real heart-rate, energy, distance, or live cadence sensor data.
+- The iOS simulator cannot prove a user's actual Apple Music/cloud/DRM library behavior.
+- The current user-imported-file and manual-BPM editing flows remain future work; the app labels unsupported cases instead of overclaiming.
+
+Next step:
+
+- Validate HealthKit permissions, `HKWorkoutSession`, CoreMotion cadence, and local-library BPM scanning on physical iPhone and Apple Watch hardware.
+
 ## 2026-06-12 - Watch Companion Polish and iOS Demo UI
 
 ### Stage 1: Current State Review

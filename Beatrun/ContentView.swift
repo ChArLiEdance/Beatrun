@@ -9,6 +9,7 @@ struct ContentView: View {
                 VStack(spacing: 16) {
                     dashboardHeader
                     cadencePanel
+                    musicLibraryPanel
                     nowPlayingPanel
                     recommendationsPanel
                     roadmapPanel
@@ -32,6 +33,9 @@ struct ContentView: View {
         .task {
             model.discoverMusic()
 #if DEBUG
+            if CommandLine.arguments.contains("-BeatrunDemoDeniedLibrary") {
+                model.simulateDeniedMusicLibraryForDemo()
+            }
             if CommandLine.arguments.contains("-BeatrunDemoAutoplay") {
                 try? await Task.sleep(for: .milliseconds(700))
                 model.startPlayback()
@@ -46,7 +50,7 @@ struct ContentView: View {
                 Text("Run mix")
                     .font(.largeTitle.bold())
                     .lineLimit(1)
-                Text("Cadence-locked demo audio")
+                Text("Library-matched run audio")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -85,7 +89,7 @@ struct ContentView: View {
             HStack(spacing: 8) {
                 statusChip(icon: "link", title: "1:1 BPM", color: .blue)
                 statusChip(icon: "speedometer", title: "+/-10%", color: .green)
-                statusChip(icon: "music.note", title: "Offline audio", color: .orange)
+                statusChip(icon: "music.note.list", title: "Music library", color: .orange)
             }
 
             Slider(
@@ -125,7 +129,58 @@ struct ContentView: View {
         .padding(18)
         .background(.background)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .shadow(color: .black.opacity(0.06), radius: 14, y: 6)
+            .shadow(color: .black.opacity(0.06), radius: 14, y: 6)
+    }
+
+    private var musicLibraryPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: model.musicLibraryState.systemImage)
+                    .font(.title3)
+                    .foregroundStyle(model.musicLibraryState == .authorized ? Color.green : Color.orange)
+                    .frame(width: 28)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Music Library")
+                        .font(.headline)
+                    Text(model.musicLibraryState.title)
+                        .font(.subheadline.weight(.semibold))
+                }
+
+                Spacer()
+
+                Button {
+                    model.requestMusicLibraryAccess()
+                } label: {
+                    Label("Scan", systemImage: "music.note.list")
+                        .labelStyle(.iconOnly)
+                        .frame(width: 36, height: 36)
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityLabel("Scan music library")
+            }
+
+            Text(model.musicLibraryMessage)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 8) {
+                libraryMetric("Scanned", "\(model.scannedLibraryTrackCount)")
+                libraryMetric("Retiming", "\(model.retimeReadyTrackCount)")
+                libraryMetric("Needs BPM", "\(model.tracksNeedingBPMCount)")
+                libraryMetric("Metadata", "\(model.metadataOnlyTrackCount)")
+            }
+
+            Text("DRM or cloud-only Apple Music tracks are metadata-only. Beatrun recommends tempo-adjusted playback only for BPM-tagged, legal local or imported files.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(3)
+        }
+        .padding(18)
+        .background(.background)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .shadow(color: .black.opacity(0.05), radius: 12, y: 5)
     }
 
     private var nowPlayingPanel: some View {
@@ -140,7 +195,7 @@ struct ContentView: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.72)
 
-                    Text(model.nowPlayingMatch.map { "\($0.adjustment.originalBPM) -> \($0.adjustment.adjustedBPM) BPM • \($0.adjustment.speedChangeLabel)" } ?? "Choose a legal 1:1 demo track")
+                    Text(model.nowPlayingMatch.map { "\($0.adjustment.originalBPM) -> \($0.adjustment.adjustedBPM) BPM • \($0.adjustment.speedChangeLabel)" } ?? "Choose a legal 1:1 library track")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -217,7 +272,7 @@ struct ContentView: View {
                 )
                 .accessibilityLabel("Metronome click volume")
 
-                Text("Offline demo loop for \(model.metronome.selectedTrackTitle)")
+                Text(model.nowPlayingMatch.map { "\($0.track.source.title) • \($0.track.analysisLabel) • \($0.track.playbackCapabilityLabel)" } ?? "Music library source pending")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -283,7 +338,7 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Recommended Safe Tracks")
+                    Text("Authorized Tracks")
                         .font(.headline)
 
                     Text("Legal 1:1 fits for \(model.cadence) SPM")
@@ -308,7 +363,11 @@ struct ContentView: View {
                 message: model.discoveryMessage,
                 autoMatchMessage: model.autoMatchMessage,
                 searchCount: model.searchCount,
-                matchCount: model.recommendations.count
+                matchCount: model.recommendations.count,
+                sourceTitle: model.usingStarterFallback ? "CC/manual fallback" : "Music library",
+                sourceNote: model.usingStarterFallback ? MusicSource.ccLicensed.usageNote : MusicSource.localLibrary.usageNote,
+                tracksNeedingBPM: model.tracksNeedingBPMCount,
+                metadataOnlyCount: model.metadataOnlyTrackCount
             )
 
             if model.discoveryPhase == .searching || model.discoveryPhase == .analyzing {
@@ -335,10 +394,11 @@ struct ContentView: View {
             Text("Competition MVP")
                 .font(.headline)
 
-            FeatureStatusRow(icon: "music.note.list", title: "Music matching", status: "Offline catalog")
+            FeatureStatusRow(icon: "music.note.list", title: "Music matching", status: "Library/CC")
             FeatureStatusRow(icon: "metronome", title: "Metronome", status: "Audio click")
             FeatureStatusRow(icon: "waveform", title: "Queue transition", status: "Beat boundary")
-            FeatureStatusRow(icon: "applewatch", title: "Apple Watch", status: "Sync-ready")
+            FeatureStatusRow(icon: "heart.text.square", title: "Watch workout", status: "Standalone")
+            FeatureStatusRow(icon: "applewatch", title: "Apple Watch", status: "HealthKit path")
         }
         .padding(18)
         .background(.background)
@@ -391,6 +451,21 @@ struct ContentView: View {
             .padding(.vertical, 7)
             .background(color.opacity(0.12))
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private func libraryMetric(_ title: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.caption.weight(.semibold))
+                .monospacedDigit()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(8)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 }
 
@@ -541,7 +616,7 @@ private struct AlignmentDetails: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            Text("\(match.track.beatGridSource) • \(match.track.rights.status.note)")
+            Text("\(match.track.source.title) • \(match.track.beatGridSource) • \(match.track.rights.status.note)")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
@@ -551,7 +626,7 @@ private struct AlignmentDetails: View {
                 Text(match.track.rights.attribution)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                Text("\(match.track.rights.tempoAdjustmentLabel) • Source: \(match.track.rights.sourceLink)")
+                Text("\(match.track.rights.tempoAdjustmentLabel) • \(match.track.analysisLabel) • Source: \(match.track.rights.sourceLink)")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -625,6 +700,10 @@ private struct DiscoveryStatusView: View {
     let autoMatchMessage: String
     let searchCount: Int
     let matchCount: Int
+    let sourceTitle: String
+    let sourceNote: String
+    let tracksNeedingBPM: Int
+    let metadataOnlyCount: Int
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -652,12 +731,12 @@ private struct DiscoveryStatusView: View {
                 .minimumScaleFactor(0.8)
 
             HStack(spacing: 10) {
-                statusPill(title: "Source", value: MusicSource.generatedPreview.title)
+                statusPill(title: "Source", value: sourceTitle)
                 statusPill(title: "Matches", value: "\(matchCount)")
-                statusPill(title: "Searches", value: "\(searchCount)")
+                statusPill(title: "Needs BPM", value: "\(tracksNeedingBPM)")
             }
 
-            Text(MusicSource.generatedPreview.usageNote)
+            Text("\(sourceNote) Metadata-only tracks: \(metadataOnlyCount). Searches: \(searchCount).")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
@@ -717,10 +796,11 @@ private struct TrackRow: View {
                     HStack(spacing: 6) {
                         rowPill("\(match.adjustment.originalBPM) -> \(match.adjustment.adjustedBPM) BPM", color: .blue)
                         rowPill(match.adjustment.speedChangeLabel, color: abs(match.adjustment.speedChangePercent) <= 6 ? .green : .orange)
-                        rowPill(match.track.rights.status.title, color: .gray)
+                        rowPill(match.track.source.title, color: .purple)
+                        rowPill(match.track.playbackCapabilityLabel, color: match.track.canUseForTempoAdjustedPlayback ? .green : .gray)
                     }
 
-                    Text(match.matchReason)
+                    Text("\(match.matchReason) • \(match.track.analysisLabel)")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)

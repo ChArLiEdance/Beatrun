@@ -2,20 +2,32 @@ import SwiftUI
 
 struct WatchContentView: View {
     @State private var state = WatchPlaybackState()
+    @State private var workout = WatchWorkoutManager()
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
                 cadenceHeader
-                trackQueue
-                playbackStatus
+                workoutControls
                 cadenceControls
+                workoutStatus
+                playbackStatus
+                trackQueue
                 tempoSummary
-                playbackControls
+                connectionStatus
             }
             .padding(.vertical, 8)
         }
         .containerBackground(.black, for: .navigation)
+        .task {
+#if DEBUG
+            if CommandLine.arguments.contains("-BeatrunWatchDemoWorkout") {
+                try? await Task.sleep(for: .milliseconds(500))
+                state.startWorkout()
+                workout.startDemoFallback(targetCadence: state.targetCadence)
+            }
+#endif
+        }
     }
 
     private var cadenceHeader: some View {
@@ -24,8 +36,8 @@ struct WatchContentView: View {
                 Text("Beatrun")
                     .font(.headline)
                 Spacer()
-                Image(systemName: state.isPlaying ? "figure.run.circle.fill" : "figure.run.circle")
-                    .foregroundStyle(state.isPlaying ? .green : .secondary)
+                Image(systemName: workout.state == .running ? "figure.run.circle.fill" : "figure.run.circle")
+                    .foregroundStyle(workout.state == .running ? .green : .secondary)
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 4) {
@@ -36,18 +48,91 @@ struct WatchContentView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text(state.playbackStatus)
+                Text(workout.state.title)
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(state.isPlaying ? .green : .secondary)
+                    .foregroundStyle(workout.state == .running ? .green : .secondary)
                     .lineLimit(1)
             }
+
+            HStack(spacing: 8) {
+                Label(workout.currentCadence == 0 ? "-- current" : "\(workout.currentCadence) current", systemImage: "figure.run")
+                Text(workout.cadenceDeltaLabel)
+            }
+            .font(.caption2.weight(.medium))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
         }
+    }
+
+    private var workoutStatus: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Label(workout.elapsedLabel, systemImage: "timer")
+                    .foregroundStyle(.blue)
+                Spacer()
+                Text(workout.metronomeRunning ? "Metronome on" : "Metronome ready")
+                    .foregroundStyle(workout.metronomeRunning ? .green : .secondary)
+            }
+            .font(.caption2.weight(.medium))
+
+            HStack(spacing: 8) {
+                compactMetric("HR", workout.heartRateLabel)
+                compactMetric("Energy", workout.energyLabel)
+                compactMetric("Dist", workout.distanceLabel)
+            }
+
+            Text(workout.authorizationStatus)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .padding(8)
+        .background(.thinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private var workoutControls: some View {
+        HStack(spacing: 8) {
+            if workout.state == .running || workout.state == .paused {
+                Button {
+                    let shouldRunAfterTap = workout.state == .paused
+                    workout.pauseOrResume()
+                    state.pauseOrResumeWorkout(isRunning: shouldRunAfterTap)
+                } label: {
+                    Label(workout.state == .running ? "Pause" : "Resume", systemImage: workout.state == .running ? "pause.fill" : "play.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button(role: .destructive) {
+                    workout.end()
+                    state.endWorkout()
+                } label: {
+                    Label("End", systemImage: "stop.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            } else {
+                Button {
+                    state.startWorkout()
+                    workout.start(targetCadence: state.targetCadence)
+                } label: {
+                    Label("Start Workout", systemImage: "figure.run")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .controlSize(.small)
     }
 
     private var cadenceControls: some View {
         HStack(spacing: 8) {
             Button {
                 state.adjustCadence(by: -5)
+                workout.updateTargetCadence(state.targetCadence)
             } label: {
                 Label("-5", systemImage: "minus")
                     .labelStyle(.titleAndIcon)
@@ -56,6 +141,7 @@ struct WatchContentView: View {
 
             Button {
                 state.adjustCadence(by: 5)
+                workout.updateTargetCadence(state.targetCadence)
             } label: {
                 Label("+5", systemImage: "plus")
                     .labelStyle(.titleAndIcon)
@@ -137,36 +223,16 @@ struct WatchContentView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var playbackControls: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
-                Button {
-                    state.togglePlayback()
-                } label: {
-                    Label(state.playPauseTitle, systemImage: state.playPauseSymbol)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-
-                Button {
-                    state.stopPlayback()
-                } label: {
-                    Label("Stop", systemImage: "stop.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-            }
-
-            HStack {
-                Image(systemName: "applewatch.radiowaves.left.and.right")
-                Text(state.connectionStatus)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                Spacer()
-            }
-            .font(.caption2)
-            .foregroundStyle(.secondary)
+    private var connectionStatus: some View {
+        HStack {
+            Image(systemName: state.connectionStatus == "iPhone connected" ? "iphone.and.arrow.forward" : "applewatch")
+            Text(state.standaloneStatus)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Spacer()
         }
+        .font(.caption2)
+        .foregroundStyle(.secondary)
     }
 }
 

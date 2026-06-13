@@ -19,7 +19,7 @@ final class WatchPlaybackState {
     var adjustedBPM = WatchSyncPayload.fallback.adjustedBPM
     var speedChangeLabel = WatchSyncPayload.fallback.speedChangeLabel
     var rightsStatus = WatchSyncPayload.fallback.rightsStatus
-    var connectionStatus = "Waiting for iPhone"
+    var connectionStatus = "Standalone Mode"
     var lastUpdated = WatchSyncPayload.fallback.updatedAt
 
     @ObservationIgnored private let connectivity = WatchConnectivityController()
@@ -29,7 +29,7 @@ final class WatchPlaybackState {
             self?.apply(payload)
         }
         connectivity.onStatusChange = { [weak self] status in
-            self?.connectionStatus = status
+            self?.applyConnectionStatus(status)
         }
     }
 
@@ -45,12 +45,46 @@ final class WatchPlaybackState {
         isCrossfading ? "Crossfade active" : "Crossfade idle"
     }
 
+    var standaloneStatus: String {
+        if connectionStatus == "iPhone connected" {
+            "iPhone connected"
+        } else {
+            "Standalone workout active"
+        }
+    }
+
     func togglePlayback() {
         isPlaying.toggle()
         syncStatus = isPlaying ? "Metronome clock running" : "Paused"
         playbackStatus = isPlaying ? "Playing" : "Paused"
         playHaptic()
         connectivity.send(.playPause())
+    }
+
+    func startWorkout() {
+        isPlaying = true
+        playbackStatus = "Workout"
+        syncStatus = standaloneStatus
+        transitionStatus = "Local workout clock running"
+        playHaptic()
+        connectivity.send(.start())
+    }
+
+    func pauseOrResumeWorkout(isRunning: Bool) {
+        isPlaying = isRunning
+        playbackStatus = isRunning ? "Workout" : "Paused"
+        syncStatus = isRunning ? standaloneStatus : "Workout paused"
+        playHaptic()
+        connectivity.send(.playPause())
+    }
+
+    func endWorkout() {
+        isPlaying = false
+        playbackStatus = "Ended"
+        syncStatus = connectionStatus == "iPhone connected" ? "Workout ended" : "Standalone ended"
+        transitionStatus = "Local workout ended"
+        playHaptic()
+        connectivity.send(.stop())
     }
 
     func stopPlayback() {
@@ -84,6 +118,15 @@ final class WatchPlaybackState {
         speedChangeLabel = payload.speedChangeLabel
         rightsStatus = payload.rightsStatus
         lastUpdated = payload.updatedAt
+    }
+
+    private func applyConnectionStatus(_ status: String) {
+        if status == "Waiting for iPhone" || status == "iPhone not reachable" || status == "Control queued" {
+            connectionStatus = "Standalone Mode"
+            syncStatus = isPlaying ? "Standalone workout active" : "Standalone ready"
+        } else {
+            connectionStatus = status
+        }
     }
 
     private func playHaptic() {

@@ -18,36 +18,68 @@ enum VocalPreference: String, CaseIterable, Identifiable {
     var description: String {
         switch self {
         case .instrumental:
-            "Instrumental demo loops with a clear 1:1 beat."
+            "Instrumental library tracks with clear BPM metadata."
         case .vocal:
-            "Vocal-style demo metadata with generated safe playback."
+            "Vocal-style library tracks with legal playback metadata."
         }
     }
 }
 
 enum MusicSource: String, Hashable {
+    case localLibrary
+    case appleMusic
+    case importedFile
+    case ccLicensed
     case generatedPreview
 
     var title: String {
         switch self {
+        case .localLibrary:
+            "Local Library"
+        case .appleMusic:
+            "Apple Music"
+        case .importedFile:
+            "Imported File"
+        case .ccLicensed:
+            "CC Licensed"
         case .generatedPreview:
-            "Offline Demo"
+            "Generated Fallback"
         }
     }
 
     var usageNote: String {
         switch self {
+        case .localLibrary:
+            "Uses the user's authorized MediaPlayer library metadata and local, non-DRM asset URLs when available."
+        case .appleMusic:
+            "Apple Music catalog or cloud tracks may provide metadata, but DRM/cloud assets are not waveform-analyzed or retimed by this MVP."
+        case .importedFile:
+            "User-imported audio can be analyzed or manually tagged when the user provides a legal local file."
+        case .ccLicensed:
+            "Explicitly licensed starter metadata for competition fallback. Replace with bundled or imported CC audio before distribution."
         case .generatedPreview:
-            "Only local generated demo audio is used. No commercial music is downloaded, scraped, or redistributed."
+            "Generated synthesis is kept only as a development fallback, not the primary product music path."
         }
     }
 }
 
 enum AudioRightsStatus: String, Hashable {
+    case localLibrary
+    case appleMusicMetadata
+    case importedFile
+    case ccLicensed
     case originalGenerated
 
     var title: String {
         switch self {
+        case .localLibrary:
+            "User library"
+        case .appleMusicMetadata:
+            "Metadata only"
+        case .importedFile:
+            "User import"
+        case .ccLicensed:
+            "CC licensed"
         case .originalGenerated:
             "Generated in app"
         }
@@ -55,8 +87,16 @@ enum AudioRightsStatus: String, Hashable {
 
     var note: String {
         switch self {
+        case .localLibrary:
+            "Playback depends on user authorization and a local non-DRM asset URL."
+        case .appleMusicMetadata:
+            "Can be used for BPM matching metadata, but not for waveform analysis or tempo-adjusted playback unless Apple APIs allow it."
+        case .importedFile:
+            "The user supplied the file, so Beatrun can analyze or retime it when the format is supported."
+        case .ccLicensed:
+            "Allowed for demo matching when the bundled or imported file license permits tempo changes."
         case .originalGenerated:
-            "Safe for demo playback because the loop is synthesized locally from metadata."
+            "Development-only fallback. It is not the primary music library path."
         }
     }
 }
@@ -119,7 +159,32 @@ struct RunningTrack: Identifiable, Hashable {
     let downbeatOffsetMilliseconds: Int
     let beatGridSource: String
     let rights: AudioRights
-    let source: MusicSource = .generatedPreview
+    let source: MusicSource
+    let playbackAssetURL: URL?
+    let hasBPMMetadata: Bool
+    let waveformAnalysisAvailable: Bool
+    let isDRMProtected: Bool
+    let requiresManualBPM: Bool
+
+    var canUseForTempoAdjustedPlayback: Bool {
+        rights.allowsTempoAdjustment && playbackAssetURL != nil && !isDRMProtected
+    }
+
+    var playbackCapabilityLabel: String {
+        if requiresManualBPM {
+            "Needs BPM"
+        } else if canUseForTempoAdjustedPlayback {
+            "Retiming ready"
+        } else if source == .appleMusic {
+            "Metadata only"
+        } else {
+            "Import audio"
+        }
+    }
+
+    var analysisLabel: String {
+        waveformAnalysisAvailable ? "Waveform OK" : "BPM metadata"
+    }
 
     func tempoDistance(to cadence: Int) -> Int {
         TempoAdjustment.analyze(track: self, cadence: cadence)?.bpmDelta ?? Int.max
@@ -181,6 +246,7 @@ struct TempoAdjustment: Hashable {
 
     static func analyze(track: RunningTrack, cadence: Int) -> TempoAdjustment? {
         guard track.rights.allowsTempoAdjustment else { return nil }
+        guard track.hasBPMMetadata, !track.requiresManualBPM else { return nil }
         let ratio = Double(cadence) / Double(track.bpm)
         let percent = (ratio - 1.0) * 100.0
         guard abs(percent) <= maximumAdjustmentPercent else { return nil }
@@ -224,33 +290,41 @@ struct TrackMatch: Identifiable {
     }
 }
 
-struct DemoMusicCatalog {
-    private static let generatedRights = AudioRights(
-        status: .originalGenerated,
-        licenseName: "Original generated demo audio",
-        attribution: "Generated by Beatrun's local AVFoundation synthesis engine.",
-        sourceDescription: "No external recording. Track metadata drives a local drum/bass loop in MetronomeEngine.swift.",
-        sourceLink: "Beatrun/MetronomeEngine.swift",
+struct AuthorizedMusicCatalog {
+    private static let ccStarterRights = AudioRights(
+        status: .ccLicensed,
+        licenseName: "Competition starter metadata",
+        attribution: "Beatrun starter metadata for CC or user-imported files.",
+        sourceDescription: "No commercial recording is bundled. Replace each entry with a user-authorized local file or CC licensed asset before distribution.",
+        sourceLink: "docs/demo-catalog.md",
         allowsTempoAdjustment: true
     )
 
     static let tracks: [RunningTrack] = [
-        RunningTrack(title: "Easy Warmup", artist: "Beatrun Lab", bpm: 144, preference: .instrumental, genre: "Electronic", energy: 68, beatConfidence: 0.92, downbeatOffsetMilliseconds: 22, beatGridSource: "Curated 1:1 demo grid", rights: generatedRights),
-        RunningTrack(title: "Night Circuit", artist: "Beatrun Lab", bpm: 160, preference: .instrumental, genre: "Electronic", energy: 82, beatConfidence: 0.94, downbeatOffsetMilliseconds: 18, beatGridSource: "Curated 1:1 demo grid", rights: generatedRights),
-        RunningTrack(title: "Forward Motion", artist: "Beatrun Lab", bpm: 166, preference: .instrumental, genre: "Synth", energy: 78, beatConfidence: 0.91, downbeatOffsetMilliseconds: 32, beatGridSource: "Curated 1:1 demo grid", rights: generatedRights),
-        RunningTrack(title: "Steel Horizon", artist: "Beatrun Lab", bpm: 172, preference: .instrumental, genre: "Breakbeat", energy: 88, beatConfidence: 0.89, downbeatOffsetMilliseconds: 41, beatGridSource: "Curated 1:1 demo grid", rights: generatedRights),
-        RunningTrack(title: "Clean Stride", artist: "Beatrun Lab", bpm: 180, preference: .instrumental, genre: "House", energy: 90, beatConfidence: 0.97, downbeatOffsetMilliseconds: 8, beatGridSource: "Curated 1:1 demo grid", rights: generatedRights),
-        RunningTrack(title: "Blue Relay", artist: "Beatrun Lab", bpm: 188, preference: .instrumental, genre: "Dance", energy: 86, beatConfidence: 0.9, downbeatOffsetMilliseconds: 36, beatGridSource: "Curated 1:1 demo grid", rights: generatedRights),
-        RunningTrack(title: "Final Kick", artist: "Beatrun Lab", bpm: 198, preference: .instrumental, genre: "Dance", energy: 92, beatConfidence: 0.88, downbeatOffsetMilliseconds: 46, beatGridSource: "Curated 1:1 demo grid", rights: generatedRights),
-        RunningTrack(title: "Step Into Light", artist: "Beatrun Lab", bpm: 146, preference: .vocal, genre: "Pop", energy: 72, beatConfidence: 0.86, downbeatOffsetMilliseconds: 44, beatGridSource: "Vocal-style 1:1 demo grid", rights: generatedRights),
-        RunningTrack(title: "Hold the Pace", artist: "Beatrun Lab", bpm: 158, preference: .vocal, genre: "Indie Pop", energy: 79, beatConfidence: 0.88, downbeatOffsetMilliseconds: 27, beatGridSource: "Vocal-style 1:1 demo grid", rights: generatedRights),
-        RunningTrack(title: "Keep Breathing", artist: "Beatrun Lab", bpm: 168, preference: .vocal, genre: "Pop Rock", energy: 84, beatConfidence: 0.87, downbeatOffsetMilliseconds: 35, beatGridSource: "Vocal-style 1:1 demo grid", rights: generatedRights),
-        RunningTrack(title: "Run the Line", artist: "Beatrun Lab", bpm: 180, preference: .vocal, genre: "Dance Pop", energy: 91, beatConfidence: 0.92, downbeatOffsetMilliseconds: 12, beatGridSource: "Vocal-style 1:1 demo grid", rights: generatedRights),
-        RunningTrack(title: "After the Turn", artist: "Beatrun Lab", bpm: 190, preference: .vocal, genre: "Alternative", energy: 83, beatConfidence: 0.85, downbeatOffsetMilliseconds: 52, beatGridSource: "Vocal-style 1:1 demo grid", rights: generatedRights),
-        RunningTrack(title: "Finish Lights", artist: "Beatrun Lab", bpm: 198, preference: .vocal, genre: "Dance Pop", energy: 89, beatConfidence: 0.86, downbeatOffsetMilliseconds: 39, beatGridSource: "Vocal-style 1:1 demo grid", rights: generatedRights)
+        RunningTrack(title: "Easy Warmup", artist: "CC Starter Pack", bpm: 144, preference: .instrumental, genre: "Electronic", energy: 68, beatConfidence: 0.92, downbeatOffsetMilliseconds: 22, beatGridSource: "Curated 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
+        RunningTrack(title: "Night Circuit", artist: "CC Starter Pack", bpm: 160, preference: .instrumental, genre: "Electronic", energy: 82, beatConfidence: 0.94, downbeatOffsetMilliseconds: 18, beatGridSource: "Curated 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
+        RunningTrack(title: "Forward Motion", artist: "CC Starter Pack", bpm: 166, preference: .instrumental, genre: "Synth", energy: 78, beatConfidence: 0.91, downbeatOffsetMilliseconds: 32, beatGridSource: "Curated 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
+        RunningTrack(title: "Steel Horizon", artist: "CC Starter Pack", bpm: 172, preference: .instrumental, genre: "Breakbeat", energy: 88, beatConfidence: 0.89, downbeatOffsetMilliseconds: 41, beatGridSource: "Curated 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
+        RunningTrack(title: "Clean Stride", artist: "CC Starter Pack", bpm: 180, preference: .instrumental, genre: "House", energy: 90, beatConfidence: 0.97, downbeatOffsetMilliseconds: 8, beatGridSource: "Curated 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
+        RunningTrack(title: "Blue Relay", artist: "CC Starter Pack", bpm: 188, preference: .instrumental, genre: "Dance", energy: 86, beatConfidence: 0.9, downbeatOffsetMilliseconds: 36, beatGridSource: "Curated 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
+        RunningTrack(title: "Final Kick", artist: "CC Starter Pack", bpm: 198, preference: .instrumental, genre: "Dance", energy: 92, beatConfidence: 0.88, downbeatOffsetMilliseconds: 46, beatGridSource: "Curated 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
+        RunningTrack(title: "Step Into Light", artist: "CC Starter Pack", bpm: 146, preference: .vocal, genre: "Pop", energy: 72, beatConfidence: 0.86, downbeatOffsetMilliseconds: 44, beatGridSource: "Vocal-style 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
+        RunningTrack(title: "Hold the Pace", artist: "CC Starter Pack", bpm: 158, preference: .vocal, genre: "Indie Pop", energy: 79, beatConfidence: 0.88, downbeatOffsetMilliseconds: 27, beatGridSource: "Vocal-style 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
+        RunningTrack(title: "Keep Breathing", artist: "CC Starter Pack", bpm: 168, preference: .vocal, genre: "Pop Rock", energy: 84, beatConfidence: 0.87, downbeatOffsetMilliseconds: 35, beatGridSource: "Vocal-style 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
+        RunningTrack(title: "Run the Line", artist: "CC Starter Pack", bpm: 180, preference: .vocal, genre: "Dance Pop", energy: 91, beatConfidence: 0.92, downbeatOffsetMilliseconds: 12, beatGridSource: "Vocal-style 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
+        RunningTrack(title: "After the Turn", artist: "CC Starter Pack", bpm: 190, preference: .vocal, genre: "Alternative", energy: 83, beatConfidence: 0.85, downbeatOffsetMilliseconds: 52, beatGridSource: "Vocal-style 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
+        RunningTrack(title: "Finish Lights", artist: "CC Starter Pack", bpm: 198, preference: .vocal, genre: "Dance Pop", energy: 89, beatConfidence: 0.86, downbeatOffsetMilliseconds: 39, beatGridSource: "Vocal-style 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false)
     ]
 
     static func recommendations(cadence: Int, preference: VocalPreference) -> [TrackMatch] {
+        recommendations(from: tracks, cadence: cadence, preference: preference)
+    }
+
+    static func recommendations(
+        from tracks: [RunningTrack],
+        cadence: Int,
+        preference: VocalPreference
+    ) -> [TrackMatch] {
         tracks
             .filter { $0.preference == preference }
             .compactMap { track in
@@ -269,10 +343,22 @@ struct DemoMusicCatalog {
 }
 
 struct MusicDiscoveryService {
-    func discover(cadence: Int, preference: VocalPreference) async throws -> [TrackMatch] {
+    func discover(
+        cadence: Int,
+        preference: VocalPreference,
+        libraryTracks: [RunningTrack],
+        allowStarterFallback: Bool
+    ) async throws -> [TrackMatch] {
         try await Task.sleep(for: .milliseconds(450))
         try Task.checkCancellation()
-        let matches = DemoMusicCatalog.recommendations(cadence: cadence, preference: preference)
+        let libraryMatches = AuthorizedMusicCatalog.recommendations(
+            from: libraryTracks,
+            cadence: cadence,
+            preference: preference
+        )
+        let matches = libraryMatches.isEmpty && allowStarterFallback
+            ? AuthorizedMusicCatalog.recommendations(cadence: cadence, preference: preference)
+            : libraryMatches
         try await Task.sleep(for: .milliseconds(350))
         try Task.checkCancellation()
         return matches

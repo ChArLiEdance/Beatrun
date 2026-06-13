@@ -1,6 +1,6 @@
 # Beatrun
 
-Beatrun is an iOS running cadence app for competition demos. The user chooses a target cadence, Beatrun recommends copyright-safe demo music, then plays a tempo-adjusted backing loop with a synchronized metronome click.
+Beatrun is an iOS and watchOS running cadence app for competition demos. The user chooses a target cadence, Beatrun recommends user-authorized music-library or CC/manual-BPM tracks, and the Watch can run a standalone workout with a synchronized metronome state.
 
 Current MVP scope: 1:1 BPM matching only. Beatrun does not use double-time or half-time matching in this version, so a 90 BPM track is never used to match 180 SPM.
 
@@ -8,22 +8,31 @@ Current MVP scope: 1:1 BPM matching only. Beatrun does not use double-time or ha
 
 - Target cadence selection from 140 to 200 steps per minute.
 - Instrumental and vocal-style demo music preferences.
-- Offline demo catalog with generated, legal-for-demo playback.
+- MediaPlayer music-library permission flow with denial fallback.
+- User-library matching for BPM-tagged local tracks, plus CC/manual-BPM starter metadata when no library tracks are available.
 - 1:1 BPM matching with tempo adjustment capped at +/-10%.
 - Automatic rediscovery and best-match selection after cadence or music type changes.
-- Generated backing loop plus metronome click using AVFoundation.
-- Beat-boundary playback queue with current/upcoming demo tracks.
-- MVP-level 4-beat crossfade between generated loops while the metronome clock keeps running.
-- Polished iOS demo interface with a run-mix header, current track, next track, transition countdown, beat count, target cadence, adjusted BPM, tempo shift, and rights status.
+- Metronome click using AVFoundation while authorized music playback remains clearly labeled.
+- Beat-boundary queue metadata with current/upcoming legal 1:1 matches.
+- MVP-level transition countdown/crossfade state while the metronome clock keeps running.
+- Polished iOS demo interface with a run-mix header, music-library status, current track, next track, transition countdown, beat count, target cadence, adjusted BPM, tempo shift, and rights/source status.
 - WatchConnectivity-based companion state path for cadence, playback, sync, queue, transition, and basic Watch controls.
-- watchOS companion UI with Play/Pause, Stop, cadence +/-5 controls, transition state, crossfade state, BPM, shift, and beat count.
+- watchOS standalone workout UI with Start, Pause/Resume, End, target/current cadence, elapsed time, HealthKit metrics, cadence +/-5 controls, transition state, crossfade state, BPM, shift, and beat count.
+- HealthKit `HKWorkoutSession` / `HKLiveWorkoutBuilder` path with CoreMotion cadence fallback on Watch.
 - CHANGELOG and dev-log tracking for each upload phase.
 
 ## Legal Audio Strategy
 
-The MVP uses local generated demo audio only. Beatrun does not scrape, download, stream, redistribute, or package unauthorized commercial music.
+The current product path uses user-authorized music sources. Beatrun does not scrape, download, decrypt, copy, stream, redistribute, or package unauthorized commercial music.
 
-Each demo track records:
+Supported source categories:
+
+- Local MediaPlayer library tracks with BPM metadata and a local, non-DRM asset URL.
+- Apple Music or cloud-library metadata when available, treated as metadata-only if DRM/cloud access prevents waveform analysis or tempo-adjusted playback.
+- User-imported local files in future UI iterations.
+- Explicit CC/royalty-free tracks or manually BPM-tagged starter metadata for competition fallback.
+
+Each track records:
 
 - Original BPM
 - Target-adjusted BPM
@@ -32,8 +41,11 @@ Each demo track records:
 - Attribution
 - Source link or source explanation
 - Beat-grid source and confidence
+- Whether waveform analysis is available
+- Whether BPM is metadata-sourced or needs manual tagging
+- Whether the item is metadata-only due to DRM/cloud limitations
 
-The current demo catalog is documented in [docs/demo-catalog.md](docs/demo-catalog.md). The generated audio source is the local synthesis code in [Beatrun/MetronomeEngine.swift](Beatrun/MetronomeEngine.swift).
+The current starter catalog is documented in [docs/demo-catalog.md](docs/demo-catalog.md). The music-library access layer is [Beatrun/MusicLibraryService.swift](Beatrun/MusicLibraryService.swift).
 
 ## Matching Rules
 
@@ -43,7 +55,8 @@ For each track:
 2. It calculates the speed ratio needed to make the track match the cadence.
 3. It rejects the track if the required speed change is outside +/-10%.
 4. It rejects the track if its rights metadata does not allow tempo adjustment.
-5. It ranks remaining tracks by tempo adjustment size and beat confidence.
+5. It rejects tracks without BPM metadata unless they have been manually tagged in a supported flow.
+6. It ranks remaining tracks by tempo adjustment size and beat confidence.
 
 No double-time or half-time matching is performed in this MVP.
 
@@ -54,38 +67,42 @@ No double-time or half-time matching is performed in this MVP.
 3. Run the app.
 4. Choose a target cadence such as 160, 170, 180, or 190 SPM.
 5. Switch between Instrumental and Vocal-style.
-6. Review recommended demo tracks and their original/adjusted BPM.
-7. Press play to hear the generated backing loop and synchronized metronome click.
-8. Watch the queue panel show the upcoming track and beat countdown to the next transition.
-9. Open the `BeatrunWatch` scheme to show the Watch companion view with cadence, queue, transition, and control state.
-10. Change cadence and watch Beatrun automatically rediscover the best legal 1:1 match.
+6. Tap Scan in the Music Library card to request library permission.
+7. Review authorized matches and their original/adjusted BPM, source, analysis mode, and tempo-shift percentage.
+8. If permission is denied or the simulator has no library, review the CC/manual-BPM fallback state.
+9. Press play to hear the synchronized metronome click and inspect the queue metadata countdown.
+10. Open the `BeatrunWatch` scheme to show the standalone Watch workout view with cadence, HealthKit path, queue, transition, and control state.
+11. Change cadence and watch Beatrun automatically rediscover the best legal 1:1 match.
 
 ## Queue Transition MVP
 
-The iOS app keeps the metronome click as the master clock. Demo music follows that clock:
+The iOS app keeps the metronome click as the master clock. Music-library metadata follows that clock:
 
-- The queue keeps a current track and a preloaded next track.
+- The queue keeps a current track and a next track.
 - The next track is chosen from the same legal 1:1 recommendation list.
 - The next track's adjusted BPM matches the target cadence.
 - Transitions are scheduled on 8-beat boundaries.
-- The generated backing loops use a basic 4-beat crossfade.
+- The UI shows a 4-beat crossfade/metadata transition state.
 - Beat count is not reset during track transitions.
 
-This is an MVP-level transition prototype for judging and screen recording. It is not presented as professional-grade seamless DJ mixing.
+This is an MVP-level transition prototype for judging and screen recording. It is not presented as professional-grade seamless DJ mixing or as universal Apple Music retiming.
 
 ## Apple Watch Companion
 
 The project includes a `BeatrunWatch` watchOS target. The iOS app and Watch app now share a lightweight WatchConnectivity payload model.
 
-The Watch companion shows:
+The Watch app can open without the iPhone and enter standalone workout mode. It shows:
 
 - Target cadence
+- Current cadence and target delta
+- Workout elapsed time
+- HealthKit metrics when available: heart rate, active energy, and distance
 - Playback and sync status
 - Current track
 - Next track
 - Transition / crossfade status
 - Beat count, adjusted BPM, and tempo shift
-- Play/Pause and Stop controls
+- Start Workout, Pause/Resume, and End controls
 - Cadence +/-5 controls
 - Lightweight haptic feedback for local control taps
 
@@ -94,23 +111,34 @@ Current WatchConnectivity scope:
 - iOS publishes playback state through `updateApplicationContext`.
 - iOS can send reachable Watch updates through `sendMessage`.
 - Watch controls send Play/Pause, Stop, and cadence delta commands back to iOS when the simulator/device pair is reachable.
-- If the iPhone is not reachable, the Watch UI keeps a local fallback state so the competition demo screen remains usable.
+- If the iPhone is not reachable, the Watch UI shows Standalone Mode / Standalone workout active and continues to run local workout state.
+
+Current HealthKit / Workout Session scope:
+
+- Watch requests HealthKit permission for running workouts plus heart rate, active energy, and walking/running distance reads.
+- Watch starts an `HKWorkoutSession` and `HKLiveWorkoutBuilder` for running workouts.
+- CoreMotion `CMPedometer` is used for live cadence when available.
+- Simulator fallback keeps elapsed time, metronome state, and current cadence moving even when real sensors are unavailable.
 
 Limitations:
 
 - Live sync requires a paired, reachable iPhone/watchOS simulator or device pair.
-- HealthKit and Workout Session are not implemented yet.
-- The Watch UI does not claim real workout metrics or real-time heart-rate/cadence sensing.
+- Real HealthKit metrics and live cadence are reliable only on a physical Apple Watch with permissions granted.
+- Apple Music / cloud / DRM tracks may be metadata-only and are not waveform-analyzed or tempo-adjusted by this MVP.
+- Tracks without BPM metadata are not recommended unless a supported manual-BPM flow supplies BPM.
+- Local-file tempo-adjusted playback is still a limited MVP path; the UI labels metadata-only cases instead of pretending every Apple Music track can be retimed.
 
 ## Project Files
 
-- [Beatrun/Models.swift](Beatrun/Models.swift): demo catalog, rights metadata, 1:1 tempo-adjustment scoring.
-- [Beatrun/BeatrunModel.swift](Beatrun/BeatrunModel.swift): app state, debounced rediscovery, best-match selection, Watch state publishing.
-- [Beatrun/MetronomeEngine.swift](Beatrun/MetronomeEngine.swift): generated audio loop and metronome playback.
+- [Beatrun/Models.swift](Beatrun/Models.swift): music source, rights metadata, BPM metadata, and 1:1 tempo-adjustment scoring.
+- [Beatrun/MusicLibraryService.swift](Beatrun/MusicLibraryService.swift): MediaPlayer permission and BPM-tagged library track scanning.
+- [Beatrun/BeatrunModel.swift](Beatrun/BeatrunModel.swift): app state, debounced rediscovery, best-match selection, library fallback, Watch state publishing.
+- [Beatrun/MetronomeEngine.swift](Beatrun/MetronomeEngine.swift): metronome clock, queue timing, and development fallback audio path.
 - [Beatrun/ContentView.swift](Beatrun/ContentView.swift): competition MVP UI.
 - [Beatrun/WatchSyncCoordinator.swift](Beatrun/WatchSyncCoordinator.swift): iOS WatchConnectivity state publisher and command receiver.
 - [Shared/WatchSyncPayload.swift](Shared/WatchSyncPayload.swift): shared iOS/watchOS state and control message model.
-- [BeatrunWatch](BeatrunWatch): watchOS companion UI, local fallback state, and WatchConnectivity controller.
+- [BeatrunWatch](BeatrunWatch): watchOS standalone workout UI, HealthKit/CoreMotion manager, local fallback state, and WatchConnectivity controller.
+- [BeatrunWatch/BeatrunWatch.entitlements](BeatrunWatch/BeatrunWatch.entitlements): Watch HealthKit entitlement.
 - [CHANGELOG.md](CHANGELOG.md): upload history.
 - [docs/dev-log.md](docs/dev-log.md): detailed development log with verification and risks.
 - [docs/competition-roadmap.md](docs/competition-roadmap.md): competition preparation plan.
@@ -122,7 +150,10 @@ Limitations:
 - iOS 18 or later
 - SwiftUI
 - AVFoundation
+- MediaPlayer
 - WatchConnectivity
+- HealthKit
+- CoreMotion
 
 ## Build
 

@@ -15,12 +15,14 @@
 		BEA000000000000000000006 /* MetronomeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA000000000000000000017 /* MetronomeEngine.swift */; };
 		BEA000000000000000000007 /* BeatrunModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA000000000000000000018 /* BeatrunModel.swift */; };
 		BEA000000000000000000008 /* WatchSyncCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA000000000000000000019 /* WatchSyncCoordinator.swift */; };
+		BEA000000000000000000009 /* MusicLibraryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA00000000000000000001A /* MusicLibraryService.swift */; };
 		BES000000000000000000001 /* WatchSyncPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = BES000000000000000000010 /* WatchSyncPayload.swift */; };
 		BES000000000000000000002 /* WatchSyncPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = BES000000000000000000010 /* WatchSyncPayload.swift */; };
 		BEW000000000000000000001 /* BeatrunWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEW000000000000000000011 /* BeatrunWatchApp.swift */; };
 		BEW000000000000000000002 /* WatchContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEW000000000000000000012 /* WatchContentView.swift */; };
 		BEW000000000000000000003 /* WatchPlaybackState.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEW000000000000000000013 /* WatchPlaybackState.swift */; };
 		BEW000000000000000000004 /* WatchConnectivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEW000000000000000000014 /* WatchConnectivityController.swift */; };
+		BEW000000000000000000005 /* WatchWorkoutManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEW000000000000000000015 /* WatchWorkoutManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -33,12 +35,15 @@
 		BEA000000000000000000017 /* MetronomeEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetronomeEngine.swift; sourceTree = "<group>"; };
 		BEA000000000000000000018 /* BeatrunModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeatrunModel.swift; sourceTree = "<group>"; };
 		BEA000000000000000000019 /* WatchSyncCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSyncCoordinator.swift; sourceTree = "<group>"; };
+		BEA00000000000000000001A /* MusicLibraryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicLibraryService.swift; sourceTree = "<group>"; };
 		BES000000000000000000010 /* WatchSyncPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSyncPayload.swift; sourceTree = "<group>"; };
 		BEW000000000000000000010 /* BeatrunWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BeatrunWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BEW000000000000000000011 /* BeatrunWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeatrunWatchApp.swift; sourceTree = "<group>"; };
 		BEW000000000000000000012 /* WatchContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchContentView.swift; sourceTree = "<group>"; };
 		BEW000000000000000000013 /* WatchPlaybackState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchPlaybackState.swift; sourceTree = "<group>"; };
 		BEW000000000000000000014 /* WatchConnectivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchConnectivityController.swift; sourceTree = "<group>"; };
+		BEW000000000000000000015 /* WatchWorkoutManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchWorkoutManager.swift; sourceTree = "<group>"; };
+		BEW000000000000000000016 /* BeatrunWatch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = BeatrunWatch.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -87,6 +92,7 @@
 				BEA000000000000000000017 /* MetronomeEngine.swift */,
 				BEA000000000000000000018 /* BeatrunModel.swift */,
 				BEA000000000000000000019 /* WatchSyncCoordinator.swift */,
+				BEA00000000000000000001A /* MusicLibraryService.swift */,
 				BEA000000000000000000013 /* Assets.xcassets */,
 				BEA000000000000000000022 /* Preview Content */,
 			);
@@ -108,6 +114,8 @@
 				BEW000000000000000000012 /* WatchContentView.swift */,
 				BEW000000000000000000013 /* WatchPlaybackState.swift */,
 				BEW000000000000000000014 /* WatchConnectivityController.swift */,
+				BEW000000000000000000015 /* WatchWorkoutManager.swift */,
+				BEW000000000000000000016 /* BeatrunWatch.entitlements */,
 			);
 			path = BeatrunWatch;
 			sourceTree = "<group>";
@@ -229,6 +237,7 @@
 				BEA000000000000000000006 /* MetronomeEngine.swift in Sources */,
 				BEA000000000000000000007 /* BeatrunModel.swift in Sources */,
 				BEA000000000000000000008 /* WatchSyncCoordinator.swift in Sources */,
+				BEA000000000000000000009 /* MusicLibraryService.swift in Sources */,
 				BES000000000000000000001 /* WatchSyncPayload.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -241,6 +250,7 @@
 				BEW000000000000000000002 /* WatchContentView.swift in Sources */,
 				BEW000000000000000000003 /* WatchPlaybackState.swift in Sources */,
 				BEW000000000000000000004 /* WatchConnectivityController.swift in Sources */,
+				BEW000000000000000000005 /* WatchWorkoutManager.swift in Sources */,
 				BES000000000000000000002 /* WatchSyncPayload.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -379,6 +389,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Beatrun;
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Beatrun scans your music library BPM metadata to recommend legal 1:1 cadence matches.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -412,6 +423,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Beatrun;
+				INFOPLIST_KEY_NSAppleMusicUsageDescription = "Beatrun scans your music library BPM metadata to recommend legal 1:1 cadence matches.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -436,12 +448,16 @@
 		BEW000000000000000000061 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = BeatrunWatch/BeatrunWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Beatrun Watch";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Beatrun reads workout metrics such as heart rate, energy, distance, and cadence during standalone Watch workouts.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Beatrun saves running workouts started from the Watch.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "Beatrun uses motion cadence updates for live running cadence on Apple Watch.";
 				INFOPLIST_KEY_WKApplication = YES;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.charlie.Beatrun;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -463,12 +479,16 @@
 		BEW000000000000000000062 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = BeatrunWatch/BeatrunWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Beatrun Watch";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Beatrun reads workout metrics such as heart rate, energy, distance, and cadence during standalone Watch workouts.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Beatrun saves running workouts started from the Watch.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "Beatrun uses motion cadence updates for live running cadence on Apple Watch.";
 				INFOPLIST_KEY_WKApplication = YES;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.charlie.Beatrun;
 				LD_RUNPATH_SEARCH_PATHS = (
