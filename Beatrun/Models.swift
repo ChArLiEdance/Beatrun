@@ -132,6 +132,15 @@ enum DiscoveryPhase: Equatable {
             "exclamationmark.triangle.fill"
         }
     }
+
+    var isBusy: Bool {
+        switch self {
+        case .searching, .analyzing:
+            true
+        case .ready, .failed:
+            false
+        }
+    }
 }
 
 struct AudioRights: Hashable {
@@ -442,6 +451,10 @@ struct AuthorizedMusicCatalog {
         recommendations(from: tracks, cadence: cadence, preference: preference)
     }
 
+    static func importedTracks() async -> [RunningTrack] {
+        await ImportedAudioLibrary.shared.tracks()
+    }
+
     static func recommendations(
         from tracks: [RunningTrack],
         cadence: Int,
@@ -478,9 +491,19 @@ struct MusicDiscoveryService {
             cadence: cadence,
             preference: preference
         )
-        let matches = libraryMatches.isEmpty && allowStarterFallback
-            ? AuthorizedMusicCatalog.recommendations(cadence: cadence, preference: preference)
-            : libraryMatches
+        let matches: [TrackMatch]
+        if libraryMatches.isEmpty && allowStarterFallback {
+            let importedMatches = AuthorizedMusicCatalog.recommendations(
+                from: await AuthorizedMusicCatalog.importedTracks(),
+                cadence: cadence,
+                preference: preference
+            )
+            matches = importedMatches.isEmpty
+                ? AuthorizedMusicCatalog.recommendations(cadence: cadence, preference: preference)
+                : importedMatches
+        } else {
+            matches = libraryMatches
+        }
         try await Task.sleep(for: .milliseconds(350))
         try Task.checkCancellation()
         return matches

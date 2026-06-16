@@ -32,6 +32,36 @@ final class BeatrunModel {
         metronome.upcomingMatch
     }
 
+    var musicLibraryActionTitle: String {
+        switch musicLibraryState {
+        case .notDetermined:
+            "Authorize"
+        case .authorized:
+            "Rescan"
+        case .denied, .restricted:
+            "Settings"
+        case .unavailable:
+            "Retry"
+        }
+    }
+
+    var musicLibraryActionSystemImage: String {
+        switch musicLibraryState {
+        case .notDetermined:
+            "person.crop.circle.badge.checkmark"
+        case .authorized:
+            "arrow.clockwise"
+        case .denied, .restricted:
+            "gearshape"
+        case .unavailable:
+            "wifi.exclamationmark"
+        }
+    }
+
+    var shouldOpenSettingsForMusicLibrary: Bool {
+        musicLibraryState == .denied || musicLibraryState == .restricted
+    }
+
     @ObservationIgnored private let discoveryService = MusicDiscoveryService()
     @ObservationIgnored private let musicLibraryService = MusicLibraryService()
     @ObservationIgnored private let watchSyncCoordinator = WatchSyncCoordinator()
@@ -39,6 +69,8 @@ final class BeatrunModel {
     @ObservationIgnored private var scheduledDiscoveryTask: Task<Void, Never>?
     @ObservationIgnored private var watchStateTimer: Timer?
     @ObservationIgnored private var authorizedLibraryTracks: [RunningTrack] = []
+    @ObservationIgnored private var didRunLaunchMusicLibraryFlow = false
+    @ObservationIgnored private var shouldStartPlaybackAfterDiscovery = false
 
     init() {
         configureWatchSync()
@@ -74,25 +106,66 @@ final class BeatrunModel {
         )
     }
 
+    func prepareMusicLibraryOnLaunch() {
+        guard !didRunLaunchMusicLibraryFlow else { return }
+        didRunLaunchMusicLibraryFlow = true
+        refreshMusicLibraryAndDiscover(
+            reason: "Connected to music library access flow.",
+            requestAuthorizationIfNeeded: true,
+            preferBestMatch: true
+        )
+    }
+
+    func refreshMusicLibraryAfterSettingsReturn() {
+        let currentState = musicLibraryService.authorizationState()
+        guard currentState != musicLibraryState || currentState == .authorized else { return }
+        refreshMusicLibraryAndDiscover(
+            reason: "Music library permission changed.",
+            requestAuthorizationIfNeeded: false,
+            preferBestMatch: true
+        )
+    }
+
     func discoverMusic() {
-        scheduledDiscoveryTask?.cancel()
-        scheduledDiscoveryTask = nil
-        startDiscovery(reason: "Manual search requested.", preferBestMatch: true)
+        refreshMusicLibraryAndDiscover(
+            reason: "Manual search requested.",
+            requestAuthorizationIfNeeded: false,
+            preferBestMatch: true
+        )
     }
 
     func requestMusicLibraryAccess() {
+        refreshMusicLibraryAndDiscover(
+            reason: "Music library scan completed.",
+            requestAuthorizationIfNeeded: true,
+            preferBestMatch: true
+        )
+    }
+
+    private func refreshMusicLibraryAndDiscover(
+        reason: String,
+        requestAuthorizationIfNeeded: Bool,
+        preferBestMatch: Bool
+    ) {
         discoveryTask?.cancel()
         scheduledDiscoveryTask?.cancel()
+        scheduledDiscoveryTask = nil
         searchCount += 1
         discoveryPhase = .searching
-        discoveryMessage = "Requesting system music library permission."
+        discoveryMessage = requestAuthorizationIfNeeded
+            ? "Requesting system music library permission."
+            : "Checking system music library authorization."
         autoMatchMessage = "Only tracks with BPM metadata and legal local playback are eligible."
 
         discoveryTask = Task {
-            let snapshot = await musicLibraryService.requestSnapshot(preference: vocalPreference)
+            let snapshot = if requestAuthorizationIfNeeded {
+                await musicLibraryService.requestSnapshot(preference: vocalPreference)
+            } else {
+                musicLibraryService.currentSnapshot(preference: vocalPreference)
+            }
             guard !Task.isCancelled else { return }
             applyMusicLibrarySnapshot(snapshot)
-            startDiscovery(reason: "Music library scan completed.", preferBestMatch: true)
+            await runDiscovery(reason: reason, preferBestMatch: preferBestMatch)
         }
     }
 
@@ -103,10 +176,26 @@ final class BeatrunModel {
     }
 
     func startPlayback() {
+        guard !discoveryPhase.isBusy else {
+            shouldStartPlaybackAfterDiscovery = true
+            autoMatchMessage = "Playback will start after music discovery finishes."
+            publishWatchState()
+            return
+        }
+
+        guard selectedMatch != nil else {
+            shouldStartPlaybackAfterDiscovery = true
+            discoverMusic()
+            autoMatchMessage = "Playback will start after a legal match is selected."
+            publishWatchState()
+            return
+        }
+
         guard !metronome.isRunning else {
             publishWatchState()
             return
         }
+        shouldStartPlaybackAfterDiscovery = false
         metronome.start()
         updateWatchTicker()
         publishWatchState()
@@ -140,7 +229,7 @@ final class BeatrunModel {
         applyMusicLibrarySnapshot(snapshot)
         recommendations = AuthorizedMusicCatalog.recommendations(cadence: cadence, preference: vocalPreference)
         discoveryPhase = .ready
-        discoveryMessage = "Music library permission denied. Showing CC0/manual-BPM fallback matches."
+        discoveryMessage = "Music library permission denied. Showing imported/CC0 fallback matches."
         autoMatchMessage = "No system tracks are scanned until permission is granted."
         applySelectionAfterDiscovery(preferBestMatch: true)
         publishWatchState()
@@ -171,42 +260,47 @@ final class BeatrunModel {
 
     private func startDiscovery(reason: String, preferBestMatch: Bool) {
         discoveryTask?.cancel()
+        searchCount += 1
+
+        discoveryTask = Task {
+            await runDiscovery(reason: reason, preferBestMatch: preferBestMatch)
+        }
+    }
+
+    private func runDiscovery(reason: String, preferBestMatch: Bool) async {
         let cadence = cadence
         let preference = vocalPreference
         let libraryTracks = authorizedLibraryTracks
         let allowStarterFallback = usingStarterFallback
-        searchCount += 1
+        discoveryPhase = .searching
+        discoveryMessage = "\(reason) Finding authorized \(preference.title.lowercased()) tracks near \(cadence) SPM."
 
-        discoveryTask = Task {
-            discoveryPhase = .searching
-            discoveryMessage = "\(reason) Finding authorized \(preference.title.lowercased()) tracks near \(cadence) SPM."
+        do {
+            let matches = try await discoveryService.discover(
+                cadence: cadence,
+                preference: preference,
+                libraryTracks: libraryTracks,
+                allowStarterFallback: allowStarterFallback
+            )
+            guard !Task.isCancelled else { return }
+            discoveryPhase = .analyzing
+            discoveryMessage = "Checking 1:1 BPM fit and tempo adjustment limits."
 
-            do {
-                let matches = try await discoveryService.discover(
-                    cadence: cadence,
-                    preference: preference,
-                    libraryTracks: libraryTracks,
-                    allowStarterFallback: allowStarterFallback
-                )
-                guard !Task.isCancelled else { return }
-                discoveryPhase = .analyzing
-                discoveryMessage = "Checking 1:1 BPM fit and tempo adjustment limits."
+            try await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
 
-                try await Task.sleep(for: .milliseconds(300))
-                guard !Task.isCancelled else { return }
-
-                recommendations = matches
-                applySelectionAfterDiscovery(preferBestMatch: preferBestMatch)
-                discoveryPhase = .ready
-                discoveryMessage = discoveryReadyMessage(matchCount: matches.count)
-                publishWatchState()
-            } catch is CancellationError {
-                return
-            } catch {
-                discoveryPhase = .failed(error.localizedDescription)
-                discoveryMessage = error.localizedDescription
-                publishWatchState()
-            }
+            recommendations = matches
+            applySelectionAfterDiscovery(preferBestMatch: preferBestMatch)
+            discoveryPhase = .ready
+            discoveryMessage = discoveryReadyMessage(matchCount: matches.count)
+            startPendingPlaybackIfNeeded()
+            publishWatchState()
+        } catch is CancellationError {
+            return
+        } catch {
+            discoveryPhase = .failed(error.localizedDescription)
+            discoveryMessage = error.localizedDescription
+            publishWatchState()
         }
     }
 
@@ -225,10 +319,14 @@ final class BeatrunModel {
         switch snapshot.accessState {
         case .authorized:
             if snapshot.tracks.isEmpty {
-                "Library authorized, but no BPM-tagged local tracks were found. Using bundled CC0 instrumental fallback when available."
+                "Library authorized, but no BPM-tagged system tracks were found. Using imported MP3 and bundled CC0 instrumental tracks when available."
             } else {
                 "\(snapshot.retimeReadyCount) retime-ready local tracks, \(snapshot.metadataOnlyCount) metadata-only tracks, \(snapshot.tracksNeedingBPM) need BPM."
             }
+        case .denied:
+            "Music library permission is off. Open Settings to scan system tracks; imported MP3 and bundled CC0 audio remain available."
+        case .restricted:
+            "Music library access is restricted by system policy. Imported MP3 and bundled CC0 audio remain available."
         default:
             snapshot.accessState.detail
         }
@@ -236,7 +334,7 @@ final class BeatrunModel {
 
     private func discoveryReadyMessage(matchCount: Int) -> String {
         if usingStarterFallback {
-            return "Found \(matchCount) CC0/manual-BPM fallback matches. Scan the library for user-authorized tracks."
+            return "Found \(matchCount) imported/CC0 fallback matches. Scan the library for user-authorized system tracks."
         }
 
         return "Found \(matchCount) user-authorized library matches."
@@ -266,6 +364,13 @@ final class BeatrunModel {
                 publishWatchState()
             }
         }
+    }
+
+    private func startPendingPlaybackIfNeeded() {
+        guard shouldStartPlaybackAfterDiscovery, selectedMatch != nil else { return }
+        shouldStartPlaybackAfterDiscovery = false
+        metronome.start()
+        updateWatchTicker()
     }
 
     private func configureWatchSync() {

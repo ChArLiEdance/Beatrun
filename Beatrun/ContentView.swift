@@ -1,6 +1,9 @@
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
+    @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
     @State private var model = BeatrunModel()
 
     var body: some View {
@@ -31,16 +34,24 @@ struct ContentView: View {
             .navigationBarTitleDisplayMode(.inline)
         }
         .task {
-            model.discoverMusic()
 #if DEBUG
-            if CommandLine.arguments.contains("-BeatrunDemoDeniedLibrary") {
+            let simulateDeniedLibrary = CommandLine.arguments.contains("-BeatrunDemoDeniedLibrary")
+            if simulateDeniedLibrary {
                 model.simulateDeniedMusicLibraryForDemo()
+            } else {
+                model.prepareMusicLibraryOnLaunch()
             }
             if CommandLine.arguments.contains("-BeatrunDemoAutoplay") {
                 try? await Task.sleep(for: .milliseconds(700))
                 model.startPlayback()
             }
+#else
+            model.prepareMusicLibraryOnLaunch()
 #endif
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            model.refreshMusicLibraryAfterSettingsReturn()
         }
     }
 
@@ -159,15 +170,7 @@ struct ContentView: View {
 
                 Spacer()
 
-                Button {
-                    model.requestMusicLibraryAccess()
-                } label: {
-                    Label("Scan", systemImage: "music.note.list")
-                        .labelStyle(.iconOnly)
-                        .frame(width: 36, height: 36)
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityLabel("Scan music library")
+                musicLibraryActionButton
             }
 
             Text(model.musicLibraryMessage)
@@ -189,6 +192,29 @@ struct ContentView: View {
         }
         .padding(18)
         .beatrunPanelSurface(tint: model.musicLibraryState == .authorized ? .green : .orange)
+    }
+
+    private var musicLibraryActionButton: some View {
+        Button {
+            if model.shouldOpenSettingsForMusicLibrary {
+                openAppSettings()
+            } else {
+                model.requestMusicLibraryAccess()
+            }
+        } label: {
+            Label(model.musicLibraryActionTitle, systemImage: model.musicLibraryActionSystemImage)
+                .labelStyle(.titleAndIcon)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.small)
+        .accessibilityLabel(model.shouldOpenSettingsForMusicLibrary ? "Open app settings" : "Authorize or rescan music library")
+    }
+
+    private func openAppSettings() {
+        guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
+        openURL(settingsURL)
     }
 
     private var nowPlayingPanel: some View {
@@ -369,8 +395,8 @@ struct ContentView: View {
                 autoMatchMessage: model.autoMatchMessage,
                 searchCount: model.searchCount,
                 matchCount: model.recommendations.count,
-                sourceTitle: model.usingStarterFallback ? "CC0 fallback" : "Music library",
-                sourceNote: model.usingStarterFallback ? MusicSource.ccLicensed.usageNote : MusicSource.localLibrary.usageNote,
+                sourceTitle: model.usingStarterFallback ? "Imported/CC0 library" : "Music library",
+                sourceNote: model.usingStarterFallback ? "User-imported MP3 files and bundled CC0 tracks are available when the system music library is empty or unavailable." : MusicSource.localLibrary.usageNote,
                 tracksNeedingBPM: model.tracksNeedingBPMCount,
                 metadataOnlyCount: model.metadataOnlyTrackCount
             )

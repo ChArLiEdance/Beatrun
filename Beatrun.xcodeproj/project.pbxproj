@@ -21,6 +21,15 @@
 		BEA00000000000000000000C /* waiting_tttt.m4a in Resources */ = {isa = PBXBuildFile; fileRef = BEA00000000000000000001D /* waiting_tttt.m4a */; };
 		BEA00000000000000000000D /* level_1.m4a in Resources */ = {isa = PBXBuildFile; fileRef = BEA00000000000000000001E /* level_1.m4a */; };
 		BEA00000000000000000000E /* level_3.m4a in Resources */ = {isa = PBXBuildFile; fileRef = BEA00000000000000000001F /* level_3.m4a */; };
+		BED000000000000000000001 /* AudioBPMAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED000000000000000000011 /* AudioBPMAnalyzer.swift */; };
+		BED000000000000000000002 /* ImportedAudioLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED000000000000000000012 /* ImportedAudioLibrary.swift */; };
+		BED000000000000000000003 /* nastelbom-instrumental-495889.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = BED000000000000000000013 /* nastelbom-instrumental-495889.mp3 */; };
+		BED000000000000000000004 /* nastelbom-instrumental-instrumental-music-501717.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = BED000000000000000000014 /* nastelbom-instrumental-instrumental-music-501717.mp3 */; };
+		BED000000000000000000005 /* the_mountain-instrumental-513154.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = BED000000000000000000015 /* the_mountain-instrumental-513154.mp3 */; };
+		BED000000000000000000006 /* the_mountain-instrumental-508025.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = BED000000000000000000016 /* the_mountain-instrumental-508025.mp3 */; };
+		BED000000000000000000007 /* leberch-instrumental-instrumental-piano-music-522790.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = BED000000000000000000017 /* leberch-instrumental-instrumental-piano-music-522790.mp3 */; };
+		BED000000000000000000008 /* leberch-instrumental-516791.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = BED000000000000000000018 /* leberch-instrumental-516791.mp3 */; };
+		BED000000000000000000009 /* atlasaudio-instrumental-519455.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = BED000000000000000000019 /* atlasaudio-instrumental-519455.mp3 */; };
 		BES000000000000000000001 /* WatchSyncPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = BES000000000000000000010 /* WatchSyncPayload.swift */; };
 		BES000000000000000000002 /* WatchSyncPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = BES000000000000000000010 /* WatchSyncPayload.swift */; };
 		BEW000000000000000000001 /* BeatrunWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEW000000000000000000011 /* BeatrunWatchApp.swift */; };
@@ -46,6 +55,15 @@
 		BEA00000000000000000001D /* waiting_tttt.m4a */ = {isa = PBXFileReference; lastKnownFileType = audio.mp4; path = Audio/Processed/waiting_tttt.m4a; sourceTree = "<group>"; };
 		BEA00000000000000000001E /* level_1.m4a */ = {isa = PBXFileReference; lastKnownFileType = audio.mp4; path = Audio/Processed/level_1.m4a; sourceTree = "<group>"; };
 		BEA00000000000000000001F /* level_3.m4a */ = {isa = PBXFileReference; lastKnownFileType = audio.mp4; path = Audio/Processed/level_3.m4a; sourceTree = "<group>"; };
+		BED000000000000000000011 /* AudioBPMAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioBPMAnalyzer.swift; sourceTree = "<group>"; };
+		BED000000000000000000012 /* ImportedAudioLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportedAudioLibrary.swift; sourceTree = "<group>"; };
+		BED000000000000000000013 /* nastelbom-instrumental-495889.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = Audio/UserLibrary/nastelbom-instrumental-495889.mp3; sourceTree = "<group>"; };
+		BED000000000000000000014 /* nastelbom-instrumental-instrumental-music-501717.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = Audio/UserLibrary/nastelbom-instrumental-instrumental-music-501717.mp3; sourceTree = "<group>"; };
+		BED000000000000000000015 /* the_mountain-instrumental-513154.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = Audio/UserLibrary/the_mountain-instrumental-513154.mp3; sourceTree = "<group>"; };
+		BED000000000000000000016 /* the_mountain-instrumental-508025.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = Audio/UserLibrary/the_mountain-instrumental-508025.mp3; sourceTree = "<group>"; };
+		BED000000000000000000017 /* leberch-instrumental-instrumental-piano-music-522790.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = Audio/UserLibrary/leberch-instrumental-instrumental-piano-music-522790.mp3; sourceTree = "<group>"; };
+		BED000000000000000000018 /* leberch-instrumental-516791.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = Audio/UserLibrary/leberch-instrumental-516791.mp3; sourceTree = "<group>"; };
+		BED000000000000000000019 /* atlasaudio-instrumental-519455.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = Audio/UserLibrary/atlasaudio-instrumental-519455.mp3; sourceTree = "<group>"; };
 		BES000000000000000000010 /* WatchSyncPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSyncPayload.swift; sourceTree = "<group>"; };
 		BEW000000000000000000010 /* BeatrunWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BeatrunWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BEW000000000000000000011 /* BeatrunWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeatrunWatchApp.swift; sourceTree = "<group>"; };
@@ -100,6 +118,8 @@
 				BEA000000000000000000012 /* ContentView.swift */,
 				BEA000000000000000000016 /* Models.swift */,
 				BEA000000000000000000017 /* MetronomeEngine.swift */,
+				BED000000000000000000011 /* AudioBPMAnalyzer.swift */,
+				BED000000000000000000012 /* ImportedAudioLibrary.swift */,
 				BEA000000000000000000018 /* BeatrunModel.swift */,
 				BEA000000000000000000019 /* WatchSyncCoordinator.swift */,
 				BEA00000000000000000001A /* MusicLibraryService.swift */,
@@ -109,6 +129,13 @@
 				BEA00000000000000000001D /* waiting_tttt.m4a */,
 				BEA00000000000000000001E /* level_1.m4a */,
 				BEA00000000000000000001F /* level_3.m4a */,
+				BED000000000000000000013 /* nastelbom-instrumental-495889.mp3 */,
+				BED000000000000000000014 /* nastelbom-instrumental-instrumental-music-501717.mp3 */,
+				BED000000000000000000015 /* the_mountain-instrumental-513154.mp3 */,
+				BED000000000000000000016 /* the_mountain-instrumental-508025.mp3 */,
+				BED000000000000000000017 /* leberch-instrumental-instrumental-piano-music-522790.mp3 */,
+				BED000000000000000000018 /* leberch-instrumental-516791.mp3 */,
+				BED000000000000000000019 /* atlasaudio-instrumental-519455.mp3 */,
 				BEA000000000000000000022 /* Preview Content */,
 			);
 			path = Beatrun;
@@ -233,6 +260,13 @@
 				BEA00000000000000000000C /* waiting_tttt.m4a in Resources */,
 				BEA00000000000000000000D /* level_1.m4a in Resources */,
 				BEA00000000000000000000E /* level_3.m4a in Resources */,
+				BED000000000000000000003 /* nastelbom-instrumental-495889.mp3 in Resources */,
+				BED000000000000000000004 /* nastelbom-instrumental-instrumental-music-501717.mp3 in Resources */,
+				BED000000000000000000005 /* the_mountain-instrumental-513154.mp3 in Resources */,
+				BED000000000000000000006 /* the_mountain-instrumental-508025.mp3 in Resources */,
+				BED000000000000000000007 /* leberch-instrumental-instrumental-piano-music-522790.mp3 in Resources */,
+				BED000000000000000000008 /* leberch-instrumental-516791.mp3 in Resources */,
+				BED000000000000000000009 /* atlasaudio-instrumental-519455.mp3 in Resources */,
 				BEA000000000000000000004 /* Preview Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -255,6 +289,8 @@
 				BEA000000000000000000002 /* ContentView.swift in Sources */,
 				BEA000000000000000000005 /* Models.swift in Sources */,
 				BEA000000000000000000006 /* MetronomeEngine.swift in Sources */,
+				BED000000000000000000001 /* AudioBPMAnalyzer.swift in Sources */,
+				BED000000000000000000002 /* ImportedAudioLibrary.swift in Sources */,
 				BEA000000000000000000007 /* BeatrunModel.swift in Sources */,
 				BEA000000000000000000008 /* WatchSyncCoordinator.swift in Sources */,
 				BEA000000000000000000009 /* MusicLibraryService.swift in Sources */,

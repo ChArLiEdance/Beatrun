@@ -66,6 +66,17 @@ struct MusicLibrarySnapshot: Hashable {
         metadataOnlyCount: 0,
         retimeReadyCount: 0
     )
+
+    static func empty(accessState: MusicLibraryAccessState) -> MusicLibrarySnapshot {
+        MusicLibrarySnapshot(
+            accessState: accessState,
+            tracks: [],
+            scannedCount: 0,
+            tracksNeedingBPM: 0,
+            metadataOnlyCount: 0,
+            retimeReadyCount: 0
+        )
+    }
 }
 
 struct MusicLibraryService {
@@ -90,8 +101,9 @@ struct MusicLibraryService {
     }
 
     func currentSnapshot(preference: VocalPreference) -> MusicLibrarySnapshot {
-        guard authorizationState() == .authorized else {
-            return .notRequested
+        let state = authorizationState()
+        guard state == .authorized else {
+            return .empty(accessState: state)
         }
 
         return makeSnapshot(preference: preference)
