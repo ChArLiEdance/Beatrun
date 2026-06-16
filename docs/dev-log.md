@@ -1,5 +1,50 @@
 # Beatrun Development Log
 
+## 2026-06-13 - Bundled CC0 Instrumental Audio
+
+Completed:
+
+- Searched active open-license music sources after confirming FreePD had closed in 2025.
+- Selected Wikimedia Commons audio files whose machine-readable metadata reported `LicenseShortName=CC0` and `AttributionRequired=false`.
+- Downloaded instrumental source Ogg files for:
+  - `Go to the Picnic` by Loyalty Freak Music
+  - `High Technologic Beat Explosion` by Loyalty Freak Music
+  - `Waiting TTTT` by Loyalty Freak Music
+  - `Level 1` by Monplaisir
+  - `Level 3` by Monplaisir
+- Transcoded the source Ogg files to AAC `.m4a` for iOS playback.
+- Ran local onset/autocorrelation analysis to seed BPM values for 1:1 matching.
+- Added iOS resource references for the `.m4a` files.
+- Updated the catalog so instrumental fallback recommendations now point at bundled CC0 audio.
+
+Files changed:
+
+- `Beatrun/Audio/SourceOgg/`
+- `Beatrun/Audio/Processed/`
+- `Beatrun/Models.swift`
+- `Beatrun/MetronomeEngine.swift`
+- `Beatrun.xcodeproj/project.pbxproj`
+- `docs/audio-sources.md`
+- `docs/demo-catalog.md`
+- `README.md`
+- `CHANGELOG.md`
+
+Verification:
+
+- `ffprobe` confirmed valid source audio durations.
+- `ffmpeg` produced iOS `.m4a` playback assets.
+- BPM seed analysis produced approximately 147, 147, 166, 178, and 206 BPM.
+
+Remaining risk:
+
+- BPM seeds are automated estimates and need manual beat-grid verification before public release.
+- Wikimedia Commons metadata reported CC0, but some imports carry Commons maintenance categories; re-check source pages before App Store distribution or public competition packaging.
+- Vocal-style starter entries remain metadata-only.
+
+Next step:
+
+- Build and launch the iOS app to confirm bundle resource lookup and playback path.
+
 ## 2026-06-13 - Watch Standalone Workout and Music Library Matching
 
 ### Stage 1: Goal Review and Scope Lock

@@ -1,6 +1,6 @@
 # Beatrun
 
-Beatrun is an iOS and watchOS running cadence app for competition demos. The user chooses a target cadence, Beatrun recommends user-authorized music-library or CC/manual-BPM tracks, and the Watch can run a standalone workout with a synchronized metronome state.
+Beatrun is an iOS and watchOS running cadence app for competition demos. The user chooses a target cadence, Beatrun recommends user-authorized music-library tracks or bundled CC0/manual-BPM fallback tracks, and the Watch can run a standalone workout with a synchronized metronome state.
 
 Current MVP scope: 1:1 BPM matching only. Beatrun does not use double-time or half-time matching in this version, so a 90 BPM track is never used to match 180 SPM.
 
@@ -9,7 +9,7 @@ Current MVP scope: 1:1 BPM matching only. Beatrun does not use double-time or ha
 - Target cadence selection from 140 to 200 steps per minute.
 - Instrumental and vocal-style demo music preferences.
 - MediaPlayer music-library permission flow with denial fallback.
-- User-library matching for BPM-tagged local tracks, plus CC/manual-BPM starter metadata when no library tracks are available.
+- User-library matching for BPM-tagged local tracks, plus bundled CC0 instrumental starter tracks when no library tracks are available.
 - 1:1 BPM matching with tempo adjustment capped at +/-10%.
 - Automatic rediscovery and best-match selection after cadence or music type changes.
 - Metronome click using AVFoundation while authorized music playback remains clearly labeled.
@@ -31,6 +31,8 @@ Supported source categories:
 - Apple Music or cloud-library metadata when available, treated as metadata-only if DRM/cloud access prevents waveform analysis or tempo-adjusted playback.
 - User-imported local files in future UI iterations.
 - Explicit CC/royalty-free tracks or manually BPM-tagged starter metadata for competition fallback.
+
+The current bundled instrumental starter tracks are CC0 files from Wikimedia Commons, transcoded from source Ogg to AAC `.m4a` for iOS playback. See [docs/audio-sources.md](docs/audio-sources.md) for source URLs, license metadata, BPM seed estimates, and processing notes.
 
 Each track records:
 
@@ -69,7 +71,7 @@ No double-time or half-time matching is performed in this MVP.
 5. Switch between Instrumental and Vocal-style.
 6. Tap Scan in the Music Library card to request library permission.
 7. Review authorized matches and their original/adjusted BPM, source, analysis mode, and tempo-shift percentage.
-8. If permission is denied or the simulator has no library, review the CC/manual-BPM fallback state.
+8. If permission is denied or the simulator has no library, review the bundled CC0 instrumental fallback state.
 9. Press play to hear the synchronized metronome click and inspect the queue metadata countdown.
 10. Open the `BeatrunWatch` scheme to show the standalone Watch workout view with cadence, HealthKit path, queue, transition, and control state.
 11. Change cadence and watch Beatrun automatically rediscover the best legal 1:1 match.
@@ -125,6 +127,7 @@ Limitations:
 - Live sync requires a paired, reachable iPhone/watchOS simulator or device pair.
 - Real HealthKit metrics and live cadence are reliable only on a physical Apple Watch with permissions granted.
 - Apple Music / cloud / DRM tracks may be metadata-only and are not waveform-analyzed or tempo-adjusted by this MVP.
+- Bundled CC0 starter tracks are used only for the instrumental fallback path and should be re-checked against their source pages before public distribution.
 - Tracks without BPM metadata are not recommended unless a supported manual-BPM flow supplies BPM.
 - Local-file tempo-adjusted playback is still a limited MVP path; the UI labels metadata-only cases instead of pretending every Apple Music track can be retimed.
 
@@ -132,6 +135,7 @@ Limitations:
 
 - [Beatrun/Models.swift](Beatrun/Models.swift): music source, rights metadata, BPM metadata, and 1:1 tempo-adjustment scoring.
 - [Beatrun/MusicLibraryService.swift](Beatrun/MusicLibraryService.swift): MediaPlayer permission and BPM-tagged library track scanning.
+- [Beatrun/Audio](Beatrun/Audio): bundled CC0 instrumental source Ogg files and iOS `.m4a` transcodes.
 - [Beatrun/BeatrunModel.swift](Beatrun/BeatrunModel.swift): app state, debounced rediscovery, best-match selection, library fallback, Watch state publishing.
 - [Beatrun/MetronomeEngine.swift](Beatrun/MetronomeEngine.swift): metronome clock, queue timing, and development fallback audio path.
 - [Beatrun/ContentView.swift](Beatrun/ContentView.swift): competition MVP UI.

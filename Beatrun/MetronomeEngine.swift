@@ -3,6 +3,15 @@ import Darwin
 import Foundation
 import Observation
 
+private final class AudioConversionInputState: @unchecked Sendable {
+    let buffer: AVAudioPCMBuffer
+    var didProvideInput = false
+
+    init(buffer: AVAudioPCMBuffer) {
+        self.buffer = buffer
+    }
+}
+
 @MainActor
 @Observable
 final class MetronomeEngine {
@@ -42,6 +51,8 @@ final class MetronomeEngine {
     @ObservationIgnored private let clickNode = AVAudioPlayerNode()
     @ObservationIgnored private var currentBackingNode = AVAudioPlayerNode()
     @ObservationIgnored private var nextBackingNode = AVAudioPlayerNode()
+    @ObservationIgnored private let currentTempoUnit = AVAudioUnitTimePitch()
+    @ObservationIgnored private let nextTempoUnit = AVAudioUnitTimePitch()
     @ObservationIgnored private let audioFormat = AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1)!
     @ObservationIgnored private var clickBuffer: AVAudioPCMBuffer?
     @ObservationIgnored private var currentBackingBuffer: AVAudioPCMBuffer?
@@ -63,7 +74,7 @@ final class MetronomeEngine {
             beatCount = 0
             audioError = nil
             audioStatus = "Syncing"
-            musicStatus = currentBackingBuffer == nil ? "Metronome only - authorized audio required" : "Authorized fallback audio playing"
+            musicStatus = currentBackingBuffer == nil ? "Metronome only - authorized audio required" : "Authorized audio playing"
             syncStatus = syncOffsetMilliseconds == 0 ? "Locked on start" : "Waiting \(syncOffsetMilliseconds) ms for tempo sync"
             startCurrentLoop()
             scheduleTransitionCycle(fromBeat: beatCount)
@@ -112,7 +123,7 @@ final class MetronomeEngine {
         syncOffsetMilliseconds = current?.adjustment.phaseOffsetMilliseconds ?? 0
         syncMode = current.map { "1:1 \($0.adjustment.speedChangeLabel)" } ?? "1:1"
         currentBackingBuffer = current.flatMap { backingBuffer(for: $0) }
-        musicStatus = current.map { $0.track.canUseForTempoAdjustedPlayback ? "Local library track selected" : "Metadata match selected" } ?? "No authorized music selected"
+        musicStatus = current.map { musicStatus(for: $0.track) } ?? "No authorized music selected"
 
         if let current {
             prepareUpcomingTrack(after: current)
@@ -268,6 +279,7 @@ final class MetronomeEngine {
             return
         }
         nextBackingNode.stop()
+        nextTempoUnit.rate = Float(upcomingMatch?.adjustment.speedRatio ?? 1.0)
         nextBackingNode.scheduleBuffer(nextBackingBuffer, at: nil, options: .loops, completionHandler: nil)
         nextBackingNode.play()
         applyBackingVolumes(current: 1.0, next: 0.0)
@@ -294,7 +306,7 @@ final class MetronomeEngine {
         }
 
         isCrossfading = false
-        musicStatus = currentBackingBuffer == nil ? "Music metadata locked" : "Authorized fallback audio playing"
+        musicStatus = currentBackingBuffer == nil ? "Music metadata locked" : "Authorized audio playing"
         queueStatus = nextTrackReady ? "Next track metadata ready" : "No legal upcoming track"
         scheduleTransitionCycle(fromBeat: beatCount)
     }
@@ -302,6 +314,7 @@ final class MetronomeEngine {
     private func startCurrentLoop() {
         guard isAudioConfigured, let currentBackingBuffer else { return }
         currentBackingNode.stop()
+        currentTempoUnit.rate = Float(currentMatch?.adjustment.speedRatio ?? 1.0)
         currentBackingNode.scheduleBuffer(currentBackingBuffer, at: nil, options: .loops, completionHandler: nil)
         currentBackingNode.play()
         nextBackingNode.stop()
@@ -326,7 +339,10 @@ final class MetronomeEngine {
 
     private func backingBuffer(for match: TrackMatch) -> AVAudioPCMBuffer? {
         guard match.track.source == .generatedPreview else {
-            return nil
+            guard match.track.canUseForTempoAdjustedPlayback, let url = match.track.playbackAssetURL else {
+                return nil
+            }
+            return try? Self.loadAudioBuffer(from: url, outputFormat: audioFormat)
         }
 
         return Self.makeBackingLoopBuffer(
@@ -334,6 +350,16 @@ final class MetronomeEngine {
             adjustment: match.adjustment,
             format: audioFormat
         )
+    }
+
+    private func musicStatus(for track: RunningTrack) -> String {
+        if track.canUseForTempoAdjustedPlayback {
+            track.source == .ccLicensed ? "Bundled CC audio selected" : "Local library track selected"
+        } else if track.source == .appleMusic {
+            "Apple Music metadata selected"
+        } else {
+            "Metadata match selected"
+        }
     }
 
     private func prepareAudioIfNeeded() throws {
@@ -353,9 +379,13 @@ final class MetronomeEngine {
         audioEngine.attach(clickNode)
         audioEngine.attach(currentBackingNode)
         audioEngine.attach(nextBackingNode)
+        audioEngine.attach(currentTempoUnit)
+        audioEngine.attach(nextTempoUnit)
         audioEngine.connect(clickNode, to: audioEngine.mainMixerNode, format: audioFormat)
-        audioEngine.connect(currentBackingNode, to: audioEngine.mainMixerNode, format: audioFormat)
-        audioEngine.connect(nextBackingNode, to: audioEngine.mainMixerNode, format: audioFormat)
+        audioEngine.connect(currentBackingNode, to: currentTempoUnit, format: audioFormat)
+        audioEngine.connect(currentTempoUnit, to: audioEngine.mainMixerNode, format: audioFormat)
+        audioEngine.connect(nextBackingNode, to: nextTempoUnit, format: audioFormat)
+        audioEngine.connect(nextTempoUnit, to: audioEngine.mainMixerNode, format: audioFormat)
         clickNode.volume = Float(volume)
         applyBackingVolumes(current: 1.0, next: 0.0)
 
@@ -385,6 +415,54 @@ final class MetronomeEngine {
         }
 
         return buffer
+    }
+
+    private static func loadAudioBuffer(
+        from url: URL,
+        outputFormat: AVAudioFormat,
+        maximumSeconds: Double = 48
+    ) throws -> AVAudioPCMBuffer {
+        let file = try AVAudioFile(forReading: url)
+        let sourceFormat = file.processingFormat
+        let sourceFrames = AVAudioFrameCount(min(Double(file.length), maximumSeconds * sourceFormat.sampleRate))
+        let sourceBuffer = AVAudioPCMBuffer(pcmFormat: sourceFormat, frameCapacity: sourceFrames)!
+        try file.read(into: sourceBuffer, frameCount: sourceFrames)
+
+        guard let converter = AVAudioConverter(from: sourceFormat, to: outputFormat) else {
+            throw NSError(
+                domain: "Beatrun.Audio",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "Unable to convert bundled audio format."]
+            )
+        }
+
+        let outputFrames = AVAudioFrameCount(
+            ceil(Double(sourceFrames) * outputFormat.sampleRate / sourceFormat.sampleRate)
+        ) + 1_024
+        let outputBuffer = AVAudioPCMBuffer(pcmFormat: outputFormat, frameCapacity: outputFrames)!
+        let inputState = AudioConversionInputState(buffer: sourceBuffer)
+        var conversionError: NSError?
+        let status = converter.convert(to: outputBuffer, error: &conversionError) { _, outStatus in
+            if inputState.didProvideInput {
+                outStatus.pointee = .endOfStream
+                return nil
+            }
+            inputState.didProvideInput = true
+            outStatus.pointee = .haveData
+            return inputState.buffer
+        }
+
+        if let conversionError {
+            throw conversionError
+        }
+        if status == .error {
+            throw NSError(
+                domain: "Beatrun.Audio",
+                code: -2,
+                userInfo: [NSLocalizedDescriptionKey: "Unable to decode bundled audio."]
+            )
+        }
+        return outputBuffer
     }
 
     private static func makeBackingLoopBuffer(

@@ -2,6 +2,26 @@
 
 All notable Beatrun uploads are recorded here.
 
+## 2026-06-13 - Bundled CC0 instrumental starter tracks
+
+### Added
+
+- Downloaded CC0 instrumental source Ogg files from Wikimedia Commons for the starter fallback path.
+- Added iOS AAC `.m4a` transcodes for `Go to the Picnic`, `High Technologic Beat Explosion`, `Waiting TTTT`, `Level 1`, and `Level 3`.
+- Added `docs/audio-sources.md` with source URLs, license metadata, BPM seed estimates, and processing notes.
+
+### Changed
+
+- Updated the instrumental fallback catalog to use real CC0 bundled audio instead of placeholder starter metadata.
+- Added bundled audio resources to the iOS app target.
+- Wired bundled CC tracks into the existing 1:1 +/-10% recommendation model with BPM values from local onset analysis.
+
+### Risk
+
+- BPM values are automated seed estimates and should be manually verified before public release.
+- Wikimedia Commons metadata reported CC0, but some FMA-origin imports can carry Commons maintenance categories; re-check source pages before distribution.
+- Vocal-style fallback entries are still metadata-only until matching legal vocal assets are selected.
+
 ## 2026-06-13 - Watch standalone workout and music library matching
 
 ### Added

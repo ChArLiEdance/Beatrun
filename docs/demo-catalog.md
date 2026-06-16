@@ -1,42 +1,43 @@
 # Beatrun Demo Catalog
 
-This catalog documents the starter metadata used by the current Beatrun competition MVP when no user-authorized library tracks are available.
+This catalog documents the starter catalog used by the current Beatrun competition MVP when no user-authorized library tracks are available.
 
 Important limits:
 
 - Primary matching should use user-authorized system music-library tracks, user-imported files, or explicitly licensed files.
-- This starter catalog is metadata fallback only; it does not bundle commercial recordings.
+- The instrumental starter catalog bundles CC0 audio files from Wikimedia Commons for competition fallback.
+- Vocal-style entries remain metadata fallback only until matching CC/royalty-free vocal assets are selected.
 - No unauthorized commercial music is downloaded, scraped, streamed, bundled, or redistributed.
 - Matching is 1:1 only.
 - Tempo adjustment must stay within +/-10%.
 - Double-time and half-time matching are disabled.
 - Tracks without BPM metadata are not recommended unless BPM is supplied by a supported manual-tagging flow.
 
-## Shared Audio Rights
+## Audio Rights
 
-The starter entries use the same conservative rights profile.
+Instrumental entries use per-track CC0 source metadata documented in [docs/audio-sources.md](audio-sources.md).
 
 | Field | Value |
 | --- | --- |
-| Rights status | CC/manual-BPM fallback metadata |
-| License/source type | Starter metadata for CC or user-imported files |
-| Attribution | Beatrun starter metadata |
-| Source link | `docs/demo-catalog.md` |
-| Source explanation | No external recording is bundled; replace with a user-authorized local file or clearly licensed CC file for real playback |
+| Rights status | CC licensed |
+| License/source type | CC0 1.0 Public Domain Dedication for bundled instrumental tracks |
+| Attribution | Recorded per track even when attribution is not required |
+| Source link | `docs/audio-sources.md` and original Wikimedia Commons file pages |
+| Source explanation | Source Ogg files are retained; iOS playback uses AAC `.m4a` transcodes |
 | Tempo adjustment | Allowed |
-| Redistribution risk | No third-party recording is redistributed |
+| Redistribution risk | Re-check Commons/FMA source pages before public distribution |
+
+Vocal-style metadata fallback entries keep the older conservative profile: no vocal recording is bundled, and entries should be replaced with user-authorized local files or clearly licensed CC assets before real playback.
 
 ## Tracks
 
 | Title | Artist | Type | Original BPM | Genre | Beat grid | Confidence | Tempo change allowed | Source / license |
 | --- | --- | --- | ---: | --- | --- | ---: | --- | --- |
-| Easy Warmup | CC Starter Pack | Instrumental | 144 | Electronic | Curated 1:1 starter grid | 92% | Yes | CC/manual-BPM metadata |
-| Night Circuit | CC Starter Pack | Instrumental | 160 | Electronic | Curated 1:1 starter grid | 94% | Yes | CC/manual-BPM metadata |
-| Forward Motion | CC Starter Pack | Instrumental | 166 | Synth | Curated 1:1 starter grid | 91% | Yes | CC/manual-BPM metadata |
-| Steel Horizon | CC Starter Pack | Instrumental | 172 | Breakbeat | Curated 1:1 starter grid | 89% | Yes | CC/manual-BPM metadata |
-| Clean Stride | CC Starter Pack | Instrumental | 180 | House | Curated 1:1 starter grid | 97% | Yes | CC/manual-BPM metadata |
-| Blue Relay | CC Starter Pack | Instrumental | 188 | Dance | Curated 1:1 starter grid | 90% | Yes | CC/manual-BPM metadata |
-| Final Kick | CC Starter Pack | Instrumental | 198 | Dance | Curated 1:1 starter grid | 88% | Yes | CC/manual-BPM metadata |
+| Go to the Picnic | Loyalty Freak Music | Instrumental | 147 | Folk / Soundtrack | Estimated from local onset analysis | 72% | Yes | CC0 bundled audio |
+| High Technologic Beat Explosion | Loyalty Freak Music | Instrumental | 147 | Electronic / Techno | Estimated from local onset analysis | 72% | Yes | CC0 bundled audio |
+| Waiting TTTT | Loyalty Freak Music | Instrumental | 166 | Electronic | Estimated from local onset analysis | 66% | Yes | CC0 bundled audio |
+| Level 1 | Monplaisir | Instrumental | 178 | Rock / Game soundtrack | Estimated from local onset analysis | 86% | Yes | CC0 bundled audio |
+| Level 3 | Monplaisir | Instrumental | 206 | Electronic / Game soundtrack | Estimated from local onset analysis | 82% | Yes | CC0 bundled audio |
 | Step Into Light | CC Starter Pack | Vocal-style | 146 | Pop | Vocal-style 1:1 starter grid | 86% | Yes | CC/manual-BPM metadata |
 | Hold the Pace | CC Starter Pack | Vocal-style | 158 | Indie Pop | Vocal-style 1:1 starter grid | 88% | Yes | CC/manual-BPM metadata |
 | Keep Breathing | CC Starter Pack | Vocal-style | 168 | Pop Rock | Vocal-style 1:1 starter grid | 87% | Yes | CC/manual-BPM metadata |

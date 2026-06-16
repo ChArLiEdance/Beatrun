@@ -56,7 +56,7 @@ enum MusicSource: String, Hashable {
         case .importedFile:
             "User-imported audio can be analyzed or manually tagged when the user provides a legal local file."
         case .ccLicensed:
-            "Explicitly licensed starter metadata for competition fallback. Replace with bundled or imported CC audio before distribution."
+            "Explicitly licensed CC/royalty-free audio or metadata for competition fallback, with source and license recorded per track."
         case .generatedPreview:
             "Generated synthesis is kept only as a development fallback, not the primary product music path."
         }
@@ -291,7 +291,26 @@ struct TrackMatch: Identifiable {
 }
 
 struct AuthorizedMusicCatalog {
-    private static let ccStarterRights = AudioRights(
+    private static func bundledAudioURL(_ resourceName: String) -> URL? {
+        Bundle.main.url(forResource: resourceName, withExtension: "m4a")
+    }
+
+    private static func cc0Rights(
+        attribution: String,
+        sourceLink: String,
+        sourceDescription: String
+    ) -> AudioRights {
+        AudioRights(
+            status: .ccLicensed,
+            licenseName: "CC0 1.0 Public Domain Dedication",
+            attribution: attribution,
+            sourceDescription: sourceDescription,
+            sourceLink: sourceLink,
+            allowsTempoAdjustment: true
+        )
+    }
+
+    private static let metadataFallbackRights = AudioRights(
         status: .ccLicensed,
         licenseName: "Competition starter metadata",
         attribution: "Beatrun starter metadata for CC or user-imported files.",
@@ -301,19 +320,122 @@ struct AuthorizedMusicCatalog {
     )
 
     static let tracks: [RunningTrack] = [
-        RunningTrack(title: "Easy Warmup", artist: "CC Starter Pack", bpm: 144, preference: .instrumental, genre: "Electronic", energy: 68, beatConfidence: 0.92, downbeatOffsetMilliseconds: 22, beatGridSource: "Curated 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
-        RunningTrack(title: "Night Circuit", artist: "CC Starter Pack", bpm: 160, preference: .instrumental, genre: "Electronic", energy: 82, beatConfidence: 0.94, downbeatOffsetMilliseconds: 18, beatGridSource: "Curated 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
-        RunningTrack(title: "Forward Motion", artist: "CC Starter Pack", bpm: 166, preference: .instrumental, genre: "Synth", energy: 78, beatConfidence: 0.91, downbeatOffsetMilliseconds: 32, beatGridSource: "Curated 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
-        RunningTrack(title: "Steel Horizon", artist: "CC Starter Pack", bpm: 172, preference: .instrumental, genre: "Breakbeat", energy: 88, beatConfidence: 0.89, downbeatOffsetMilliseconds: 41, beatGridSource: "Curated 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
-        RunningTrack(title: "Clean Stride", artist: "CC Starter Pack", bpm: 180, preference: .instrumental, genre: "House", energy: 90, beatConfidence: 0.97, downbeatOffsetMilliseconds: 8, beatGridSource: "Curated 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
-        RunningTrack(title: "Blue Relay", artist: "CC Starter Pack", bpm: 188, preference: .instrumental, genre: "Dance", energy: 86, beatConfidence: 0.9, downbeatOffsetMilliseconds: 36, beatGridSource: "Curated 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
-        RunningTrack(title: "Final Kick", artist: "CC Starter Pack", bpm: 198, preference: .instrumental, genre: "Dance", energy: 92, beatConfidence: 0.88, downbeatOffsetMilliseconds: 46, beatGridSource: "Curated 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
-        RunningTrack(title: "Step Into Light", artist: "CC Starter Pack", bpm: 146, preference: .vocal, genre: "Pop", energy: 72, beatConfidence: 0.86, downbeatOffsetMilliseconds: 44, beatGridSource: "Vocal-style 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
-        RunningTrack(title: "Hold the Pace", artist: "CC Starter Pack", bpm: 158, preference: .vocal, genre: "Indie Pop", energy: 79, beatConfidence: 0.88, downbeatOffsetMilliseconds: 27, beatGridSource: "Vocal-style 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
-        RunningTrack(title: "Keep Breathing", artist: "CC Starter Pack", bpm: 168, preference: .vocal, genre: "Pop Rock", energy: 84, beatConfidence: 0.87, downbeatOffsetMilliseconds: 35, beatGridSource: "Vocal-style 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
-        RunningTrack(title: "Run the Line", artist: "CC Starter Pack", bpm: 180, preference: .vocal, genre: "Dance Pop", energy: 91, beatConfidence: 0.92, downbeatOffsetMilliseconds: 12, beatGridSource: "Vocal-style 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
-        RunningTrack(title: "After the Turn", artist: "CC Starter Pack", bpm: 190, preference: .vocal, genre: "Alternative", energy: 83, beatConfidence: 0.85, downbeatOffsetMilliseconds: 52, beatGridSource: "Vocal-style 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
-        RunningTrack(title: "Finish Lights", artist: "CC Starter Pack", bpm: 198, preference: .vocal, genre: "Dance Pop", energy: 89, beatConfidence: 0.86, downbeatOffsetMilliseconds: 39, beatGridSource: "Vocal-style 1:1 starter grid", rights: ccStarterRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false)
+        RunningTrack(
+            title: "Go to the Picnic",
+            artist: "Loyalty Freak Music",
+            bpm: 147,
+            preference: .instrumental,
+            genre: "Folk / Soundtrack",
+            energy: 72,
+            beatConfidence: 0.72,
+            downbeatOffsetMilliseconds: 34,
+            beatGridSource: "Estimated from local onset analysis of bundled CC0 audio",
+            rights: cc0Rights(
+                attribution: "Go to the Picnic by Loyalty Freak Music",
+                sourceLink: "https://commons.wikimedia.org/wiki/File:Loyalty_Freak_Music_-_01_-_Go_to_the_Picnic.ogg",
+                sourceDescription: "Downloaded from Wikimedia Commons; metadata reports CC0/Public Domain Dedication."
+            ),
+            source: .ccLicensed,
+            playbackAssetURL: bundledAudioURL("go_to_the_picnic"),
+            hasBPMMetadata: true,
+            waveformAnalysisAvailable: true,
+            isDRMProtected: false,
+            requiresManualBPM: false
+        ),
+        RunningTrack(
+            title: "High Technologic Beat Explosion",
+            artist: "Loyalty Freak Music",
+            bpm: 147,
+            preference: .instrumental,
+            genre: "Electronic / Techno",
+            energy: 88,
+            beatConfidence: 0.72,
+            downbeatOffsetMilliseconds: 28,
+            beatGridSource: "Estimated from local onset analysis of bundled CC0 audio",
+            rights: cc0Rights(
+                attribution: "High Technologic Beat Explosion by Loyalty Freak Music",
+                sourceLink: "https://commons.wikimedia.org/wiki/File:Loyalty_Freak_Music_-_02_-_High_Technologic_Beat_Explosion.ogg",
+                sourceDescription: "Downloaded from Wikimedia Commons; metadata reports CC0/Public Domain Dedication."
+            ),
+            source: .ccLicensed,
+            playbackAssetURL: bundledAudioURL("high_technologic_beat_explosion"),
+            hasBPMMetadata: true,
+            waveformAnalysisAvailable: true,
+            isDRMProtected: false,
+            requiresManualBPM: false
+        ),
+        RunningTrack(
+            title: "Waiting TTTT",
+            artist: "Loyalty Freak Music",
+            bpm: 166,
+            preference: .instrumental,
+            genre: "Electronic",
+            energy: 80,
+            beatConfidence: 0.66,
+            downbeatOffsetMilliseconds: 36,
+            beatGridSource: "Estimated from local onset analysis of bundled CC0 audio",
+            rights: cc0Rights(
+                attribution: "Waiting TTTT by Loyalty Freak Music",
+                sourceLink: "https://commons.wikimedia.org/wiki/File:Loyalty_Freak_Music_-_05_-_Waiting_TTTT.ogg",
+                sourceDescription: "Downloaded from Wikimedia Commons; metadata reports CC0/Public Domain Dedication."
+            ),
+            source: .ccLicensed,
+            playbackAssetURL: bundledAudioURL("waiting_tttt"),
+            hasBPMMetadata: true,
+            waveformAnalysisAvailable: true,
+            isDRMProtected: false,
+            requiresManualBPM: false
+        ),
+        RunningTrack(
+            title: "Level 1",
+            artist: "Monplaisir",
+            bpm: 178,
+            preference: .instrumental,
+            genre: "Rock / Game soundtrack",
+            energy: 90,
+            beatConfidence: 0.86,
+            downbeatOffsetMilliseconds: 18,
+            beatGridSource: "Estimated from local onset analysis of bundled CC0 audio",
+            rights: cc0Rights(
+                attribution: "Level 1 by Monplaisir",
+                sourceLink: "https://commons.wikimedia.org/wiki/File:Monplaisir_-_04_-_Level_1.ogg",
+                sourceDescription: "Downloaded from Wikimedia Commons; metadata reports CC0/Public Domain Dedication."
+            ),
+            source: .ccLicensed,
+            playbackAssetURL: bundledAudioURL("level_1"),
+            hasBPMMetadata: true,
+            waveformAnalysisAvailable: true,
+            isDRMProtected: false,
+            requiresManualBPM: false
+        ),
+        RunningTrack(
+            title: "Level 3",
+            artist: "Monplaisir",
+            bpm: 206,
+            preference: .instrumental,
+            genre: "Electronic / Game soundtrack",
+            energy: 92,
+            beatConfidence: 0.82,
+            downbeatOffsetMilliseconds: 20,
+            beatGridSource: "Estimated from local onset analysis of bundled CC0 audio",
+            rights: cc0Rights(
+                attribution: "Level 3 by Monplaisir",
+                sourceLink: "https://commons.wikimedia.org/wiki/File:Monplaisir_-_06_-_Level_3.ogg",
+                sourceDescription: "Downloaded from Wikimedia Commons; metadata reports CC0/Public Domain Dedication."
+            ),
+            source: .ccLicensed,
+            playbackAssetURL: bundledAudioURL("level_3"),
+            hasBPMMetadata: true,
+            waveformAnalysisAvailable: true,
+            isDRMProtected: false,
+            requiresManualBPM: false
+        ),
+        RunningTrack(title: "Step Into Light", artist: "CC Starter Pack", bpm: 146, preference: .vocal, genre: "Pop", energy: 72, beatConfidence: 0.86, downbeatOffsetMilliseconds: 44, beatGridSource: "Vocal-style 1:1 starter grid", rights: metadataFallbackRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
+        RunningTrack(title: "Hold the Pace", artist: "CC Starter Pack", bpm: 158, preference: .vocal, genre: "Indie Pop", energy: 79, beatConfidence: 0.88, downbeatOffsetMilliseconds: 27, beatGridSource: "Vocal-style 1:1 starter grid", rights: metadataFallbackRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
+        RunningTrack(title: "Keep Breathing", artist: "CC Starter Pack", bpm: 168, preference: .vocal, genre: "Pop Rock", energy: 84, beatConfidence: 0.87, downbeatOffsetMilliseconds: 35, beatGridSource: "Vocal-style 1:1 starter grid", rights: metadataFallbackRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
+        RunningTrack(title: "Run the Line", artist: "CC Starter Pack", bpm: 180, preference: .vocal, genre: "Dance Pop", energy: 91, beatConfidence: 0.92, downbeatOffsetMilliseconds: 12, beatGridSource: "Vocal-style 1:1 starter grid", rights: metadataFallbackRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
+        RunningTrack(title: "After the Turn", artist: "CC Starter Pack", bpm: 190, preference: .vocal, genre: "Alternative", energy: 83, beatConfidence: 0.85, downbeatOffsetMilliseconds: 52, beatGridSource: "Vocal-style 1:1 starter grid", rights: metadataFallbackRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false),
+        RunningTrack(title: "Finish Lights", artist: "CC Starter Pack", bpm: 198, preference: .vocal, genre: "Dance Pop", energy: 89, beatConfidence: 0.86, downbeatOffsetMilliseconds: 39, beatGridSource: "Vocal-style 1:1 starter grid", rights: metadataFallbackRights, source: .ccLicensed, playbackAssetURL: nil, hasBPMMetadata: true, waveformAnalysisAvailable: false, isDRMProtected: false, requiresManualBPM: false)
     ]
 
     static func recommendations(cadence: Int, preference: VocalPreference) -> [TrackMatch] {

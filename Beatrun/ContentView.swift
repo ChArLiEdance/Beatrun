@@ -6,15 +6,14 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
-                    dashboardHeader
-                    cadencePanel
-                    musicLibraryPanel
-                    nowPlayingPanel
-                    recommendationsPanel
-                    roadmapPanel
+                if #available(iOS 26.0, *) {
+                    GlassEffectContainer(spacing: 16) {
+                        dashboardContent
+                    }
+                    .padding(.top, 12)
+                } else {
+                    dashboardContent
                 }
-                .padding(16)
             }
             .background(
                 LinearGradient(
@@ -29,6 +28,7 @@ struct ContentView: View {
                 .ignoresSafeArea()
             )
             .navigationTitle("Beatrun")
+            .navigationBarTitleDisplayMode(.inline)
         }
         .task {
             model.discoverMusic()
@@ -42,6 +42,18 @@ struct ContentView: View {
             }
 #endif
         }
+    }
+
+    private var dashboardContent: some View {
+        VStack(spacing: 16) {
+            dashboardHeader
+            cadencePanel
+            musicLibraryPanel
+            nowPlayingPanel
+            recommendationsPanel
+            roadmapPanel
+        }
+        .padding(16)
     }
 
     private var dashboardHeader: some View {
@@ -127,9 +139,7 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
         }
         .padding(18)
-        .background(.background)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .shadow(color: .black.opacity(0.06), radius: 14, y: 6)
+        .beatrunPanelSurface(tint: .blue)
     }
 
     private var musicLibraryPanel: some View {
@@ -172,15 +182,13 @@ struct ContentView: View {
                 libraryMetric("Metadata", "\(model.metadataOnlyTrackCount)")
             }
 
-            Text("DRM or cloud-only Apple Music tracks are metadata-only. Beatrun recommends tempo-adjusted playback only for BPM-tagged, legal local or imported files.")
+            Text("DRM or cloud-only Apple Music tracks are metadata-only. Beatrun recommends tempo-adjusted playback only for BPM-tagged legal local, imported, or bundled CC0 files.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(3)
         }
         .padding(18)
-        .background(.background)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .shadow(color: .black.opacity(0.05), radius: 12, y: 5)
+        .beatrunPanelSurface(tint: model.musicLibraryState == .authorized ? .green : .orange)
     }
 
     private var nowPlayingPanel: some View {
@@ -289,8 +297,7 @@ struct ContentView: View {
                 }
             }
             .padding(12)
-            .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .beatrunInsetSurface(tint: .blue)
 
             if let selectedMatch = model.nowPlayingMatch {
                 VStack(alignment: .leading, spacing: 10) {
@@ -329,9 +336,7 @@ struct ContentView: View {
             }
         }
         .padding(18)
-        .background(.background)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .shadow(color: .black.opacity(0.06), radius: 14, y: 6)
+        .beatrunPanelSurface(tint: model.metronome.isRunning ? .green : .blue)
     }
 
     private var recommendationsPanel: some View {
@@ -364,7 +369,7 @@ struct ContentView: View {
                 autoMatchMessage: model.autoMatchMessage,
                 searchCount: model.searchCount,
                 matchCount: model.recommendations.count,
-                sourceTitle: model.usingStarterFallback ? "CC/manual fallback" : "Music library",
+                sourceTitle: model.usingStarterFallback ? "CC0 fallback" : "Music library",
                 sourceNote: model.usingStarterFallback ? MusicSource.ccLicensed.usageNote : MusicSource.localLibrary.usageNote,
                 tracksNeedingBPM: model.tracksNeedingBPMCount,
                 metadataOnlyCount: model.metadataOnlyTrackCount
@@ -384,9 +389,7 @@ struct ContentView: View {
             }
         }
         .padding(18)
-        .background(.background)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .shadow(color: .black.opacity(0.05), radius: 12, y: 5)
+        .beatrunPanelSurface(tint: .purple)
     }
 
     private var roadmapPanel: some View {
@@ -401,9 +404,7 @@ struct ContentView: View {
             FeatureStatusRow(icon: "applewatch", title: "Apple Watch", status: "HealthKit path")
         }
         .padding(18)
-        .background(.background)
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .shadow(color: .black.opacity(0.04), radius: 10, y: 4)
+        .beatrunPanelSurface(tint: .teal)
     }
 
     private func cadencePresetButton(_ value: Int) -> some View {
@@ -437,8 +438,7 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .beatrunInsetSurface(tint: .blue)
     }
 
     private func statusChip(icon: String, title: String, color: Color) -> some View {
@@ -449,8 +449,7 @@ struct ContentView: View {
             .minimumScaleFactor(0.7)
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
-            .background(color.opacity(0.12))
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .beatrunPillSurface(tint: color)
     }
 
     private func libraryMetric(_ title: String, _ value: String) -> some View {
@@ -464,8 +463,7 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(8)
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .beatrunInsetSurface(tint: .gray)
     }
 }
 
@@ -900,6 +898,67 @@ private struct FeatureStatusRow: View {
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
         }
+    }
+}
+
+private struct BeatrunPanelSurface: ViewModifier {
+    let tint: Color
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+                .glassEffect(.regular.tint(tint.opacity(0.08)), in: .rect(cornerRadius: 8))
+                .shadow(color: tint.opacity(0.12), radius: 18, y: 8)
+        } else {
+            content
+                .background(.background)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .shadow(color: .black.opacity(0.06), radius: 14, y: 6)
+        }
+    }
+}
+
+private struct BeatrunInsetSurface: ViewModifier {
+    let tint: Color
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+                .glassEffect(.regular.tint(tint.opacity(0.07)), in: .rect(cornerRadius: 8))
+        } else {
+            content
+                .background(Color(.secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+    }
+}
+
+private struct BeatrunPillSurface: ViewModifier {
+    let tint: Color
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+                .glassEffect(.regular.tint(tint.opacity(0.12)).interactive(), in: .rect(cornerRadius: 8))
+        } else {
+            content
+                .background(tint.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+    }
+}
+
+private extension View {
+    func beatrunPanelSurface(tint: Color) -> some View {
+        modifier(BeatrunPanelSurface(tint: tint))
+    }
+
+    func beatrunInsetSurface(tint: Color) -> some View {
+        modifier(BeatrunInsetSurface(tint: tint))
+    }
+
+    func beatrunPillSurface(tint: Color) -> some View {
+        modifier(BeatrunPillSurface(tint: tint))
     }
 }
 

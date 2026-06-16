@@ -140,7 +140,7 @@ final class BeatrunModel {
         applyMusicLibrarySnapshot(snapshot)
         recommendations = AuthorizedMusicCatalog.recommendations(cadence: cadence, preference: vocalPreference)
         discoveryPhase = .ready
-        discoveryMessage = "Music library permission denied. Showing CC/manual-BPM fallback matches."
+        discoveryMessage = "Music library permission denied. Showing CC0/manual-BPM fallback matches."
         autoMatchMessage = "No system tracks are scanned until permission is granted."
         applySelectionAfterDiscovery(preferBestMatch: true)
         publishWatchState()
@@ -225,7 +225,7 @@ final class BeatrunModel {
         switch snapshot.accessState {
         case .authorized:
             if snapshot.tracks.isEmpty {
-                "Library authorized, but no BPM-tagged local tracks were found. Using CC/manual metadata fallback."
+                "Library authorized, but no BPM-tagged local tracks were found. Using bundled CC0 instrumental fallback when available."
             } else {
                 "\(snapshot.retimeReadyCount) retime-ready local tracks, \(snapshot.metadataOnlyCount) metadata-only tracks, \(snapshot.tracksNeedingBPM) need BPM."
             }
@@ -236,7 +236,7 @@ final class BeatrunModel {
 
     private func discoveryReadyMessage(matchCount: Int) -> String {
         if usingStarterFallback {
-            "Found \(matchCount) CC/manual-BPM fallback matches. Scan the library for user-authorized tracks."
+            return "Found \(matchCount) CC0/manual-BPM fallback matches. Scan the library for user-authorized tracks."
         }
 
         return "Found \(matchCount) user-authorized library matches."

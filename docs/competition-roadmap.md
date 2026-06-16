@@ -11,7 +11,7 @@ The competition story should be:
 - Runners often struggle to keep a steady cadence during training.
 - Existing playlists only roughly match BPM and do not adapt to the runner's cadence.
 - Beatrun combines cadence selection, authorized music-library matching, 1:1 tempo adjustment, beat-boundary queue transitions, synchronized metronome playback, and Watch standalone workout state in one mobile workflow.
-- The current product uses MediaPlayer library metadata, CC/manual-BPM fallback metadata, WatchConnectivity enhancement, and a HealthKit Workout Session path while clearly documenting simulator and DRM limits.
+- The current product uses MediaPlayer library metadata, bundled CC0 instrumental fallback tracks, WatchConnectivity enhancement, and a HealthKit Workout Session path while clearly documenting simulator and DRM limits.
 
 ## Scoring Targets
 
@@ -28,7 +28,7 @@ Required evidence:
 
 Current gap:
 
-- Tempo matching now supports MediaPlayer BPM metadata and CC/manual-BPM fallback metadata.
+- Tempo matching now supports MediaPlayer BPM metadata and bundled CC0/manual-BPM fallback tracks.
 - The app still needs user-imported local audio analysis and true local-file retiming verification on device.
 
 ### Market and Social Value - 25 Points
@@ -55,7 +55,7 @@ Required evidence:
 
 - The app builds and runs on iOS.
 - The demo path works without network access.
-- The user can set cadence, choose music preference, scan the music library or use fallback metadata, get recommendations, and hear synchronized clicks.
+- The user can set cadence, choose music preference, scan the music library or use bundled fallback tracks, get recommendations, and hear synchronized clicks.
 - The user can see the upcoming track and an MVP-level beat-synced transition countdown.
 - The Watch app can show standalone workout state, target/current cadence, HealthKit metrics, current/next track, transition state, and workout controls.
 - The app handles cadence changes by refreshing matches and keeping sync state visible.

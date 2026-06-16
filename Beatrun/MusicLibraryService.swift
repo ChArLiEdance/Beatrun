@@ -30,7 +30,7 @@ enum MusicLibraryAccessState: Hashable {
         case .authorized:
             "Using local, non-DRM MediaPlayer tracks when BPM metadata is available."
         case .denied:
-            "Permission was denied. Beatrun will use CC/manual-BPM fallback metadata and will not scan the system library."
+            "Permission was denied. Beatrun will use bundled CC0 instrumental fallback tracks when available and will not scan the system library."
         case .restricted:
             "Library access is restricted by system policy."
         case .unavailable:
