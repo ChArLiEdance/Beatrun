@@ -15,9 +15,12 @@ Current MVP scope: 1:1 BPM matching only. Beatrun does not use double-time or ha
 - Metronome click using AVFoundation while authorized music playback remains clearly labeled.
 - Beat-boundary queue metadata with current/upcoming legal 1:1 matches.
 - MVP-level transition countdown/crossfade state while the metronome clock keeps running.
-- Polished iOS demo interface with a run-mix header, music-library status, current track, next track, transition countdown, beat count, target cadence, adjusted BPM, tempo shift, and rights/source status.
+- Polished iOS demo interface with a core home screen for target cadence, library state, playback controls, queue status, and a short recommendation preview.
+- iOS Settings with English/Chinese language switching, music-library summary, cadence rules, Watch sync status, HealthKit notes, and rights/source guidance.
+- Dedicated iOS recommendation and tempo-detail screens for full track lists, sync grids, adjusted BPM, tempo shift, and rights/source status.
 - WatchConnectivity-based companion state path for cadence, playback, sync, queue, transition, and basic Watch controls.
-- watchOS standalone workout UI with Start, Pause/Resume, End, target/current cadence, elapsed time, HealthKit metrics, cadence +/-5 controls, transition state, crossfade state, BPM, shift, and beat count.
+- watchOS standalone workout home UI with Start, Pause/Resume, End, target/current cadence, elapsed time, cadence +/-5 controls, and a compact playback status.
+- watchOS Settings and Playback Details screens for language, HealthKit status, iPhone sync state, HealthKit metrics, transition state, crossfade state, BPM, shift, and beat count.
 - HealthKit `HKWorkoutSession` / `HKLiveWorkoutBuilder` path with CoreMotion cadence fallback on Watch.
 - CHANGELOG and dev-log tracking for each upload phase.
 
@@ -73,8 +76,10 @@ No double-time or half-time matching is performed in this MVP.
 7. Review authorized matches and their original/adjusted BPM, source, analysis mode, and tempo-shift percentage.
 8. If permission is denied or the simulator has no library, review the bundled CC0 instrumental fallback state.
 9. Press play to hear the synchronized metronome click and inspect the queue metadata countdown.
-10. Open the `BeatrunWatch` scheme to show the standalone Watch workout view with cadence, HealthKit path, queue, transition, and control state.
-11. Change cadence and watch Beatrun automatically rediscover the best legal 1:1 match.
+10. Open Settings from the gear button to switch between English, Chinese, or system language.
+11. Open Recommendations or Tempo Details when judging needs the full match list, sync grid, and rights details.
+12. Open the `BeatrunWatch` scheme to show the standalone Watch workout home, then open Watch Settings or Playback Details for HealthKit, queue, transition, and sync state.
+13. Change cadence and watch Beatrun automatically rediscover the best legal 1:1 match.
 
 ## Queue Transition MVP
 
@@ -98,15 +103,12 @@ The Watch app can open without the iPhone and enter standalone workout mode. It 
 - Target cadence
 - Current cadence and target delta
 - Workout elapsed time
-- HealthKit metrics when available: heart rate, active energy, and distance
-- Playback and sync status
-- Current track
-- Next track
-- Transition / crossfade status
-- Beat count, adjusted BPM, and tempo shift
+- Compact playback and sync status on the home screen
 - Start Workout, Pause/Resume, and End controls
 - Cadence +/-5 controls
 - Lightweight haptic feedback for local control taps
+- Settings for language, target cadence rules, workout authorization, and iPhone sync state
+- Playback Details for HealthKit metrics when available, current/next track, transition/crossfade status, beat count, adjusted BPM, and tempo shift
 
 Current WatchConnectivity scope:
 
@@ -141,6 +143,7 @@ Limitations:
 - [Beatrun/ContentView.swift](Beatrun/ContentView.swift): competition MVP UI.
 - [Beatrun/WatchSyncCoordinator.swift](Beatrun/WatchSyncCoordinator.swift): iOS WatchConnectivity state publisher and command receiver.
 - [Shared/WatchSyncPayload.swift](Shared/WatchSyncPayload.swift): shared iOS/watchOS state and control message model.
+- [Shared/AppLocalization.swift](Shared/AppLocalization.swift): shared language preference and English/Chinese interface copy table.
 - [BeatrunWatch](BeatrunWatch): watchOS standalone workout UI, HealthKit/CoreMotion manager, local fallback state, and WatchConnectivity controller.
 - [BeatrunWatch/BeatrunWatch.entitlements](BeatrunWatch/BeatrunWatch.entitlements): Watch HealthKit entitlement.
 - [CHANGELOG.md](CHANGELOG.md): upload history.

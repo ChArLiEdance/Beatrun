@@ -32,6 +32,8 @@
 		BED000000000000000000009 /* atlasaudio-instrumental-519455.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = BED000000000000000000019 /* atlasaudio-instrumental-519455.mp3 */; };
 		BES000000000000000000001 /* WatchSyncPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = BES000000000000000000010 /* WatchSyncPayload.swift */; };
 		BES000000000000000000002 /* WatchSyncPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = BES000000000000000000010 /* WatchSyncPayload.swift */; };
+		BES000000000000000000003 /* AppLocalization.swift in Sources */ = {isa = PBXBuildFile; fileRef = BES000000000000000000011 /* AppLocalization.swift */; };
+		BES000000000000000000004 /* AppLocalization.swift in Sources */ = {isa = PBXBuildFile; fileRef = BES000000000000000000011 /* AppLocalization.swift */; };
 		BEW000000000000000000001 /* BeatrunWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEW000000000000000000011 /* BeatrunWatchApp.swift */; };
 		BEW000000000000000000002 /* WatchContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEW000000000000000000012 /* WatchContentView.swift */; };
 		BEW000000000000000000003 /* WatchPlaybackState.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEW000000000000000000013 /* WatchPlaybackState.swift */; };
@@ -65,6 +67,7 @@
 		BED000000000000000000018 /* leberch-instrumental-516791.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = Audio/UserLibrary/leberch-instrumental-516791.mp3; sourceTree = "<group>"; };
 		BED000000000000000000019 /* atlasaudio-instrumental-519455.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = Audio/UserLibrary/atlasaudio-instrumental-519455.mp3; sourceTree = "<group>"; };
 		BES000000000000000000010 /* WatchSyncPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSyncPayload.swift; sourceTree = "<group>"; };
+		BES000000000000000000011 /* AppLocalization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLocalization.swift; sourceTree = "<group>"; };
 		BEW000000000000000000010 /* BeatrunWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BeatrunWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		BEW000000000000000000011 /* BeatrunWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeatrunWatchApp.swift; sourceTree = "<group>"; };
 		BEW000000000000000000012 /* WatchContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchContentView.swift; sourceTree = "<group>"; };
@@ -166,6 +169,7 @@
 			isa = PBXGroup;
 			children = (
 				BES000000000000000000010 /* WatchSyncPayload.swift */,
+				BES000000000000000000011 /* AppLocalization.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -236,6 +240,7 @@
 			knownRegions = (
 				en,
 				Base,
+				"zh-Hans",
 			);
 			mainGroup = BEA000000000000000000020;
 			minimizedProjectReferenceProxies = 1;
@@ -295,6 +300,7 @@
 				BEA000000000000000000008 /* WatchSyncCoordinator.swift in Sources */,
 				BEA000000000000000000009 /* MusicLibraryService.swift in Sources */,
 				BES000000000000000000001 /* WatchSyncPayload.swift in Sources */,
+				BES000000000000000000003 /* AppLocalization.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -308,6 +314,7 @@
 				BEW000000000000000000004 /* WatchConnectivityController.swift in Sources */,
 				BEW000000000000000000005 /* WatchWorkoutManager.swift in Sources */,
 				BES000000000000000000002 /* WatchSyncPayload.swift in Sources */,
+				BES000000000000000000004 /* AppLocalization.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

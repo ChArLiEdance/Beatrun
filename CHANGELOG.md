@@ -2,6 +2,27 @@
 
 All notable Beatrun uploads are recorded here.
 
+## 2026-06-19 - Localization and Settings Screens
+
+### Added
+
+- Added shared English/Chinese language preference support for iOS and watchOS UI copy.
+- Added iOS Settings with language selection, music-library summary, cadence rules, Watch sync status, HealthKit notes, and rights/source guidance.
+- Added iOS Recommendations and Tempo Details screens so the home screen can stay focused on core cadence, library, playback, and short recommendation preview.
+- Added Watch Settings and Playback Details screens for language, cadence rules, HealthKit status, iPhone sync, metrics, queue, transition, and BPM shift.
+
+### Changed
+
+- Refactored the iOS home hierarchy to keep long recommendation lists, sync grids, copyright details, and roadmap/status details out of the first screen.
+- Refactored the Watch home hierarchy to prioritize standalone workout controls, cadence, and compact playback state while moving metrics and queue details to secondary screens.
+- Kept 1:1 BPM matching, +/-10% retime limit, no double-time/half-time matching, WatchConnectivity, HealthKit, workout, music-library, imported-audio, and BPM-analysis behavior intact.
+
+### Verified
+
+- Built iOS successfully with `xcodebuild -quiet -project Beatrun.xcodeproj -scheme Beatrun -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/beatrun-localization-ios build`.
+- Built watchOS successfully with `xcodebuild -quiet -project Beatrun.xcodeproj -scheme BeatrunWatch -configuration Debug -destination 'generic/platform=watchOS Simulator' -derivedDataPath /private/tmp/beatrun-localization-watch build`.
+- Captured iOS Chinese home, iOS English home, iOS Settings, Watch home, and Watch Settings screenshots under `/private/tmp/beatrun-*`.
+
 ## 2026-06-13 - Bundled CC0 instrumental starter tracks
 
 ### Added

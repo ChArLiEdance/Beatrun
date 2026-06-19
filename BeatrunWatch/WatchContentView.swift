@@ -1,64 +1,93 @@
 import SwiftUI
 
+private enum WatchRoute: Hashable {
+    case playbackDetails
+    case settings
+}
+
 struct WatchContentView: View {
+    @AppStorage("beatrun.language") private var languageRawValue = AppLanguage.followSystem.rawValue
     @State private var state = WatchPlaybackState()
     @State private var workout = WatchWorkoutManager()
+    @State private var path: [WatchRoute] = []
+
+    private var language: AppLanguage {
+        AppLanguage.preferred(from: languageRawValue)
+    }
+
+    private var copy: AppCopy {
+        AppCopy(language: language)
+    }
+
+    private var appLocale: Locale {
+        Locale(identifier: language.localeIdentifier ?? Locale.current.identifier)
+    }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 7) {
-                WatchCadenceHero(
-                    targetCadence: state.targetCadence,
-                    workoutState: workout.state,
-                    currentCadence: workout.currentCadence,
-                    cadenceDeltaLabel: workout.cadenceDeltaLabel,
-                    elapsedLabel: workout.elapsedLabel
-                )
+        NavigationStack(path: $path) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 7) {
+                    WatchCadenceHero(
+                        targetCadence: state.targetCadence,
+                        workoutState: workout.state,
+                        currentCadence: workout.currentCadence,
+                        cadenceDeltaLabel: workout.cadenceDeltaLabel,
+                        elapsedLabel: workout.elapsedLabel,
+                        copy: copy
+                    )
 
-                WatchWorkoutControls(
-                    workoutState: workout.state,
-                    start: startWorkout,
-                    pauseOrResume: pauseOrResumeWorkout,
-                    end: endWorkout
-                )
+                    WatchWorkoutControls(
+                        workoutState: workout.state,
+                        start: startWorkout,
+                        pauseOrResume: pauseOrResumeWorkout,
+                        end: endWorkout,
+                        copy: copy
+                    )
 
-                WatchCadenceControls(
-                    decrease: { adjustCadence(by: -5) },
-                    increase: { adjustCadence(by: 5) }
-                )
+                    WatchCadenceControls(
+                        decrease: { adjustCadence(by: -5) },
+                        increase: { adjustCadence(by: 5) },
+                        copy: copy
+                    )
 
-                WatchMetricsPanel(
-                    metronomeRunning: workout.metronomeRunning,
-                    heartRate: workout.heartRateLabel,
-                    energy: workout.energyLabel,
-                    distance: workout.distanceLabel,
-                    authorizationStatus: workout.authorizationStatus
-                )
+                    WatchHomeStatusPanel(
+                        metronomeRunning: workout.metronomeRunning,
+                        syncStatus: state.syncStatus,
+                        currentTrack: state.currentTrack,
+                        copy: copy
+                    )
 
-                WatchPlaybackPanel(
-                    beatsRemaining: state.beatsRemaining,
-                    crossfadeStatus: state.crossfadeStatus,
-                    syncStatus: state.syncStatus,
-                    transitionStatus: state.transitionStatus,
-                    isPlaying: state.isPlaying,
-                    isCrossfading: state.isCrossfading
-                )
+                    NavigationLink(value: WatchRoute.playbackDetails) {
+                        Label(copy("playback.details"), systemImage: "waveform.path")
+                    }
 
-                WatchQueuePanel(
-                    currentTrack: state.currentTrack,
-                    nextTrack: state.nextTrack,
-                    adjustedBPM: state.adjustedBPM,
-                    speedChangeLabel: state.speedChangeLabel,
-                    beatCount: state.beatCount
-                )
+                    NavigationLink(value: WatchRoute.settings) {
+                        Label(copy("watch.settings"), systemImage: "gearshape")
+                    }
 
-                WatchConnectionFooter(
-                    connectionStatus: state.connectionStatus,
-                    standaloneStatus: state.standaloneStatus
-                )
+                    WatchConnectionFooter(
+                        connectionStatus: state.connectionStatus,
+                        standaloneStatus: state.standaloneStatus
+                    )
+                }
+                .padding(.vertical, 6)
             }
-            .padding(.vertical, 6)
+            .navigationTitle("Beatrun")
+            .navigationDestination(for: WatchRoute.self) { route in
+                switch route {
+                case .playbackDetails:
+                    WatchPlaybackDetailsView(state: state, workout: workout, copy: copy)
+                case .settings:
+                    WatchSettingsView(
+                        languageRawValue: $languageRawValue,
+                        state: state,
+                        workout: workout,
+                        copy: copy
+                    )
+                }
+            }
         }
+        .environment(\.locale, appLocale)
         .containerBackground(.black, for: .navigation)
         .task {
             await runDebugLaunchHooks()
@@ -88,10 +117,17 @@ struct WatchContentView: View {
 
     private func runDebugLaunchHooks() async {
 #if DEBUG
+        if let override = AppLanguage.debugOverride() {
+            languageRawValue = override.rawValue
+        }
         if CommandLine.arguments.contains("-BeatrunWatchDemoWorkout") {
             try? await Task.sleep(for: .milliseconds(500))
             state.startWorkout()
             workout.startDemoFallback(targetCadence: state.targetCadence)
+        }
+        if CommandLine.arguments.contains("-BeatrunWatchOpenSettings") {
+            try? await Task.sleep(for: .milliseconds(500))
+            path = [.settings]
         }
 #endif
     }
@@ -103,6 +139,7 @@ private struct WatchCadenceHero: View {
     let currentCadence: Int
     let cadenceDeltaLabel: String
     let elapsedLabel: String
+    let copy: AppCopy
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -125,7 +162,7 @@ private struct WatchCadenceHero: View {
                     .monospacedDigit()
                     .minimumScaleFactor(0.82)
 
-                Text("SPM")
+                Text(copy("spm"))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
 
@@ -165,6 +202,7 @@ private struct WatchWorkoutControls: View {
     let start: () -> Void
     let pauseOrResume: () -> Void
     let end: () -> Void
+    let copy: AppCopy
 
     var body: some View {
         HStack(spacing: 8) {
@@ -182,7 +220,7 @@ private struct WatchWorkoutControls: View {
                 .buttonStyle(.bordered)
             } else {
                 Button(action: start) {
-                    Label("Start Workout", systemImage: "figure.run")
+                    Label(copy("workout"), systemImage: "figure.run")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -195,6 +233,7 @@ private struct WatchWorkoutControls: View {
 private struct WatchCadenceControls: View {
     let decrease: () -> Void
     let increase: () -> Void
+    let copy: AppCopy
 
     var body: some View {
         HStack(spacing: 8) {
@@ -212,6 +251,123 @@ private struct WatchCadenceControls: View {
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
+    }
+}
+
+private struct WatchHomeStatusPanel: View {
+    let metronomeRunning: Bool
+    let syncStatus: String
+    let currentTrack: String
+    let copy: AppCopy
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Label(metronomeRunning ? "Metronome on" : copy("metronome.ready"), systemImage: "metronome")
+                .foregroundStyle(metronomeRunning ? .green : .secondary)
+                .font(.caption2.weight(.semibold))
+
+            Text(syncStatus)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+
+            Text(currentTrack)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.68)
+        }
+        .watchCardSurface()
+    }
+}
+
+private struct WatchPlaybackDetailsView: View {
+    let state: WatchPlaybackState
+    let workout: WatchWorkoutManager
+    let copy: AppCopy
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 7) {
+                WatchMetricsPanel(
+                    metronomeRunning: workout.metronomeRunning,
+                    heartRate: workout.heartRateLabel,
+                    energy: workout.energyLabel,
+                    distance: workout.distanceLabel,
+                    authorizationStatus: workout.authorizationStatus
+                )
+
+                WatchPlaybackPanel(
+                    beatsRemaining: state.beatsRemaining,
+                    crossfadeStatus: state.crossfadeStatus,
+                    syncStatus: state.syncStatus,
+                    transitionStatus: state.transitionStatus,
+                    isPlaying: state.isPlaying,
+                    isCrossfading: state.isCrossfading
+                )
+
+                WatchQueuePanel(
+                    currentTrack: state.currentTrack,
+                    nextTrack: state.nextTrack,
+                    adjustedBPM: state.adjustedBPM,
+                    speedChangeLabel: state.speedChangeLabel,
+                    beatCount: state.beatCount
+                )
+            }
+            .padding(.vertical, 6)
+        }
+        .navigationTitle(copy("playback.details"))
+    }
+}
+
+private struct WatchSettingsView: View {
+    @Binding var languageRawValue: String
+    let state: WatchPlaybackState
+    let workout: WatchWorkoutManager
+    let copy: AppCopy
+
+    var body: some View {
+        List {
+            Section(copy("app.language")) {
+                Picker(copy("app.language"), selection: languageSelection) {
+                    ForEach(AppLanguage.allCases) { language in
+                        Text(language.title).tag(language)
+                    }
+                }
+                Text(copy("language.note"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section(copy("cadence")) {
+                WatchMetric(title: copy("cadence.target"), value: "\(state.targetCadence)")
+                Text(copy("beat.rules"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section(copy("workout")) {
+                WatchMetric(title: "State", value: workout.state.title)
+                Text(workout.authorizationStatus)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section(copy("watch.sync")) {
+                WatchMetric(title: copy("sync"), value: state.connectionStatus)
+                Text(copy("watch.sync.note"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .navigationTitle(copy("watch.settings"))
+    }
+
+    private var languageSelection: Binding<AppLanguage> {
+        Binding(
+            get: { AppLanguage.preferred(from: languageRawValue) },
+            set: { languageRawValue = $0.rawValue }
+        )
     }
 }
 

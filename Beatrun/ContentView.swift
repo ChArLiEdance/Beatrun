@@ -1,10 +1,61 @@
 import SwiftUI
 import UIKit
 
+private enum BeatrunRoute: Hashable {
+    case recommendations
+    case tempoDetails
+}
+
 struct ContentView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage("beatrun.language") private var languageRawValue = AppLanguage.followSystem.rawValue
     @State private var model = BeatrunModel()
+    @State private var showingSettings = false
+
+    private var language: AppLanguage {
+        AppLanguage.preferred(from: languageRawValue)
+    }
+
+    private var copy: AppCopy {
+        AppCopy(language: language)
+    }
+
+    private var appLocale: Locale {
+        Locale(identifier: language.localeIdentifier ?? Locale.current.identifier)
+    }
+
+    private var localizedVocalDescription: String {
+        switch model.vocalPreference {
+        case .instrumental:
+            language.effectiveUsesChinese ? "优先使用 BPM 清晰的纯音乐曲目。" : VocalPreference.instrumental.description
+        case .vocal:
+            language.effectiveUsesChinese ? "优先使用带合法播放元数据的人声风格曲目。" : VocalPreference.vocal.description
+        }
+    }
+
+    private func localizedVocalTitle(_ preference: VocalPreference) -> String {
+        switch preference {
+        case .instrumental:
+            language.effectiveUsesChinese ? "纯音乐" : preference.title
+        case .vocal:
+            language.effectiveUsesChinese ? "人声风格" : preference.title
+        }
+    }
+
+    private var localizedMusicLibraryActionTitle: String {
+        guard language.effectiveUsesChinese else { return model.musicLibraryActionTitle }
+        return switch model.musicLibraryState {
+        case .notDetermined:
+            "授权"
+        case .authorized:
+            "重扫"
+        case .denied, .restricted:
+            "设置"
+        case .unavailable:
+            "重试"
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -32,9 +83,40 @@ struct ContentView: View {
             )
             .navigationTitle("Beatrun")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel(copy("open.settings"))
+                }
+            }
+            .navigationDestination(for: BeatrunRoute.self) { route in
+                switch route {
+                case .recommendations:
+                    BeatrunRecommendationsView(model: model, copy: copy)
+                case .tempoDetails:
+                    BeatrunTempoDetailsView(model: model, copy: copy)
+                }
+            }
+        }
+        .environment(\.locale, appLocale)
+        .sheet(isPresented: $showingSettings) {
+            BeatrunSettingsView(
+                model: model,
+                languageRawValue: $languageRawValue,
+                copy: copy,
+                openAppSettings: openAppSettings
+            )
+            .environment(\.locale, appLocale)
         }
         .task {
 #if DEBUG
+            if let override = AppLanguage.debugOverride() {
+                languageRawValue = override.rawValue
+            }
             let simulateDeniedLibrary = CommandLine.arguments.contains("-BeatrunDemoDeniedLibrary")
             if simulateDeniedLibrary {
                 model.simulateDeniedMusicLibraryForDemo()
@@ -44,6 +126,10 @@ struct ContentView: View {
             if CommandLine.arguments.contains("-BeatrunDemoAutoplay") {
                 try? await Task.sleep(for: .milliseconds(700))
                 model.startPlayback()
+            }
+            if CommandLine.arguments.contains("-BeatrunOpenSettings") {
+                try? await Task.sleep(for: .milliseconds(500))
+                showingSettings = true
             }
 #else
             model.prepareMusicLibraryOnLaunch()
@@ -62,7 +148,6 @@ struct ContentView: View {
             musicLibraryPanel
             nowPlayingPanel
             recommendationsPanel
-            roadmapPanel
         }
         .padding(16)
     }
@@ -70,10 +155,10 @@ struct ContentView: View {
     private var dashboardHeader: some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Run mix")
+                Text(copy("run.mix"))
                     .font(.largeTitle.bold())
                     .lineLimit(1)
-                Text("Library-matched run audio")
+                Text(copy("run.subtitle"))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -95,9 +180,9 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Target Cadence")
+                    Text(copy("cadence.target"))
                         .font(.headline)
-                    Text("Steps per minute")
+                    Text(copy("spm"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -112,7 +197,7 @@ struct ContentView: View {
             HStack(spacing: 8) {
                 statusChip(icon: "link", title: "1:1 BPM", color: .blue)
                 statusChip(icon: "speedometer", title: "+/-10%", color: .green)
-                statusChip(icon: "music.note.list", title: "Music library", color: .orange)
+                statusChip(icon: "music.note.list", title: copy("library"), color: .orange)
             }
 
             Slider(
@@ -123,7 +208,7 @@ struct ContentView: View {
                 in: 140...200,
                 step: 1
             )
-            .accessibilityLabel("Target cadence")
+            .accessibilityLabel(copy("cadence.target"))
 
             HStack {
                 cadencePresetButton(160)
@@ -133,19 +218,19 @@ struct ContentView: View {
             }
 
             Picker(
-                "Music Type",
+                copy("music.type"),
                 selection: Binding(
                     get: { model.vocalPreference },
                     set: { model.setVocalPreference($0) }
                 )
             ) {
                 ForEach(VocalPreference.allCases) { preference in
-                    Text(preference.title).tag(preference)
+                    Text(localizedVocalTitle(preference)).tag(preference)
                 }
             }
             .pickerStyle(.segmented)
 
-            Text(model.vocalPreference.description)
+            Text(localizedVocalDescription)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -162,7 +247,7 @@ struct ContentView: View {
                     .frame(width: 28)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Music Library")
+                    Text(copy("library"))
                         .font(.headline)
                     Text(model.musicLibraryState.title)
                         .font(.subheadline.weight(.semibold))
@@ -185,7 +270,7 @@ struct ContentView: View {
                 libraryMetric("Metadata", "\(model.metadataOnlyTrackCount)")
             }
 
-            Text("DRM or cloud-only Apple Music tracks are metadata-only. Beatrun recommends tempo-adjusted playback only for BPM-tagged legal local, imported, or bundled CC0 files.")
+            Text(copy("legal.note"))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(3)
@@ -202,14 +287,14 @@ struct ContentView: View {
                 model.requestMusicLibraryAccess()
             }
         } label: {
-            Label(model.musicLibraryActionTitle, systemImage: model.musicLibraryActionSystemImage)
+            Label(localizedMusicLibraryActionTitle, systemImage: model.musicLibraryActionSystemImage)
                 .labelStyle(.titleAndIcon)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.small)
-        .accessibilityLabel(model.shouldOpenSettingsForMusicLibrary ? "Open app settings" : "Authorize or rescan music library")
+        .accessibilityLabel(model.shouldOpenSettingsForMusicLibrary ? copy("library.open.settings") : copy("library.scan"))
     }
 
     private func openAppSettings() {
@@ -221,15 +306,15 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Label("Now Playing", systemImage: model.metronome.isRunning ? "waveform.path.ecg" : "waveform.path")
+                    Label(copy("now.playing"), systemImage: model.metronome.isRunning ? "waveform.path.ecg" : "waveform.path")
                         .font(.headline)
 
-                    Text(model.nowPlayingMatch?.track.title ?? "No legal match")
+                    Text(model.nowPlayingMatch?.track.title ?? copy("no.legal.match"))
                         .font(.title2.bold())
                         .lineLimit(1)
                         .minimumScaleFactor(0.72)
 
-                    Text(model.nowPlayingMatch.map { "\($0.adjustment.originalBPM) -> \($0.adjustment.adjustedBPM) BPM • \($0.adjustment.speedChangeLabel)" } ?? "Choose a legal 1:1 library track")
+                    Text(model.nowPlayingMatch.map { "\($0.adjustment.originalBPM) -> \($0.adjustment.adjustedBPM) BPM • \($0.adjustment.speedChangeLabel)" } ?? copy("beat.rules"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -257,7 +342,7 @@ struct ContentView: View {
 
                     Spacer()
 
-                    Text("Music \(Int(model.metronome.musicVolume * 100))%")
+                    Text("\(copy("playback")) \(Int(model.metronome.musicVolume * 100))%")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
@@ -281,7 +366,7 @@ struct ContentView: View {
                     in: 0...1,
                     step: 0.05
                 )
-                .accessibilityLabel("Backing music volume")
+                .accessibilityLabel(copy("backing.volume"))
 
                 HStack {
                     Label(model.metronome.audioStatus, systemImage: model.metronome.isRunning ? "speaker.wave.2.fill" : "speaker.wave.1")
@@ -304,7 +389,7 @@ struct ContentView: View {
                     in: 0...1,
                     step: 0.05
                 )
-                .accessibilityLabel("Metronome click volume")
+                .accessibilityLabel(copy("click.volume"))
 
                 Text(model.nowPlayingMatch.map { "\($0.track.source.title) • \($0.track.analysisLabel) • \($0.track.playbackCapabilityLabel)" } ?? "Music library source pending")
                     .font(.caption)
@@ -326,39 +411,28 @@ struct ContentView: View {
             .beatrunInsetSurface(tint: .blue)
 
             if let selectedMatch = model.nowPlayingMatch {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("\(selectedMatch.track.artist) • \(selectedMatch.track.genre)")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
-                    Text(selectedMatch.matchReason)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        metricTile(title: "Target", value: "\(selectedMatch.adjustment.targetCadence)", unit: "SPM")
-                        metricTile(title: "Original", value: "\(selectedMatch.adjustment.originalBPM)", unit: "BPM")
-                        metricTile(title: "Adjusted", value: "\(selectedMatch.adjustment.adjustedBPM)", unit: "BPM")
-                        metricTile(title: "Speed", value: selectedMatch.adjustment.speedChangeLabel, unit: "")
-                        metricTile(title: "Score", value: "\(selectedMatch.score)", unit: "%")
-                        metricTile(title: "Rights", value: selectedMatch.track.rights.status.title, unit: "")
-                    }
-
-                    SyncBar(match: selectedMatch)
-                    AlignmentDetails(match: selectedMatch)
-
-                    HStack {
-                        Label(selectedMatch.syncLabel, systemImage: "checkmark.seal.fill")
-                            .foregroundStyle(abs(selectedMatch.adjustment.speedChangePercent) <= 6 ? .green : .orange)
+                NavigationLink(value: BeatrunRoute.tempoDetails) {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(copy("match.details"))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Text("\(selectedMatch.track.artist) • \(selectedMatch.track.genre) • \(selectedMatch.syncLabel)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
 
                         Spacer()
 
-                        Text("Beat \(model.metronome.beatCount)")
-                            .monospacedDigit()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.bold))
                             .foregroundStyle(.secondary)
                     }
-                    .font(.footnote.weight(.medium))
+                    .padding(12)
+                    .beatrunInsetSurface(tint: .green)
                 }
+                .buttonStyle(.plain)
             }
         }
         .padding(18)
@@ -369,10 +443,10 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Authorized Tracks")
+                    Text(copy("authorized.tracks"))
                         .font(.headline)
 
-                    Text("Legal 1:1 fits for \(model.cadence) SPM")
+                    Text("\(copy("matches")): \(model.cadence) \(copy("spm"))")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -386,7 +460,7 @@ struct ContentView: View {
                         .frame(width: 34, height: 34)
                 }
                 .buttonStyle(.bordered)
-                .accessibilityLabel("Search again")
+                .accessibilityLabel(copy("scan.again"))
             }
 
             DiscoveryStatusView(
@@ -395,17 +469,18 @@ struct ContentView: View {
                 autoMatchMessage: model.autoMatchMessage,
                 searchCount: model.searchCount,
                 matchCount: model.recommendations.count,
-                sourceTitle: model.usingStarterFallback ? "Imported/CC0 library" : "Music library",
-                sourceNote: model.usingStarterFallback ? "User-imported MP3 files and bundled CC0 tracks are available when the system music library is empty or unavailable." : MusicSource.localLibrary.usageNote,
+                sourceTitle: model.usingStarterFallback ? "Imported/CC0" : copy("library"),
+                sourceNote: model.usingStarterFallback ? copy("imported.cc") : MusicSource.localLibrary.usageNote,
                 tracksNeedingBPM: model.tracksNeedingBPMCount,
-                metadataOnlyCount: model.metadataOnlyTrackCount
+                metadataOnlyCount: model.metadataOnlyTrackCount,
+                copy: copy
             )
 
             if model.discoveryPhase == .searching || model.discoveryPhase == .analyzing {
                 ProgressView()
             }
 
-            ForEach(model.recommendations) { match in
+            ForEach(model.recommendations.prefix(3)) { match in
                 TrackRow(
                     match: match,
                     isSelected: match.id == model.selectedMatch?.id
@@ -413,6 +488,12 @@ struct ContentView: View {
                     model.select(match)
                 }
             }
+
+            NavigationLink(value: BeatrunRoute.recommendations) {
+                Label(copy("open.recommendations"), systemImage: "music.note.list")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
         }
         .padding(18)
         .beatrunPanelSurface(tint: .purple)
@@ -490,6 +571,223 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(8)
         .beatrunInsetSurface(tint: .gray)
+    }
+}
+
+private struct BeatrunSettingsView: View {
+    let model: BeatrunModel
+    @Binding var languageRawValue: String
+    let copy: AppCopy
+    let openAppSettings: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section(copy("app.language")) {
+                    Picker(copy("app.language"), selection: languageSelection) {
+                        ForEach(AppLanguage.allCases) { language in
+                            Text(language.title).tag(language)
+                        }
+                    }
+                    Text(copy("language.note"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section(copy("library.summary")) {
+                    LabeledContent(copy("library"), value: model.musicLibraryState.title)
+                    LabeledContent(copy("scanned"), value: "\(model.scannedLibraryTrackCount)")
+                    LabeledContent("Retiming", value: "\(model.retimeReadyTrackCount)")
+                    LabeledContent("Needs BPM", value: "\(model.tracksNeedingBPMCount)")
+                    Button {
+                        if model.shouldOpenSettingsForMusicLibrary {
+                            openAppSettings()
+                        } else {
+                            model.requestMusicLibraryAccess()
+                        }
+                    } label: {
+                        Label(copy("library.rescan"), systemImage: "arrow.clockwise")
+                    }
+                }
+
+                Section(copy("cadence")) {
+                    LabeledContent(copy("cadence.target"), value: "\(model.cadence) \(copy("spm"))")
+                    Text(copy("beat.rules"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(copy("cadence.range"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section(copy("watch.sync")) {
+                    LabeledContent(copy("sync"), value: model.watchSyncStatus)
+                    Text(copy("watch.sync.note"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(copy("health.watch"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section(copy("rights")) {
+                    Text(copy("legal.note"))
+                        .font(.caption)
+                    Text(copy("imported.cc"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section(copy("about")) {
+                    LabeledContent("Beatrun", value: "1.0")
+                    Text(copy("competition.mvp"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle(copy("settings.title"))
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(copy("done")) {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    private var languageSelection: Binding<AppLanguage> {
+        Binding(
+            get: { AppLanguage.preferred(from: languageRawValue) },
+            set: { languageRawValue = $0.rawValue }
+        )
+    }
+}
+
+private struct BeatrunRecommendationsView: View {
+    let model: BeatrunModel
+    let copy: AppCopy
+
+    var body: some View {
+        List {
+            Section {
+                DiscoveryStatusView(
+                    phase: model.discoveryPhase,
+                    message: model.discoveryMessage,
+                    autoMatchMessage: model.autoMatchMessage,
+                    searchCount: model.searchCount,
+                    matchCount: model.recommendations.count,
+                    sourceTitle: model.usingStarterFallback ? "Imported/CC0" : copy("library"),
+                    sourceNote: model.usingStarterFallback ? copy("imported.cc") : MusicSource.localLibrary.usageNote,
+                    tracksNeedingBPM: model.tracksNeedingBPMCount,
+                    metadataOnlyCount: model.metadataOnlyTrackCount,
+                    copy: copy
+                )
+                .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+            }
+
+            Section(copy("authorized.tracks")) {
+                ForEach(model.recommendations) { match in
+                    TrackRow(match: match, isSelected: match.id == model.selectedMatch?.id) {
+                        model.select(match)
+                    }
+                    .listRowInsets(EdgeInsets(top: 6, leading: 12, bottom: 6, trailing: 12))
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle(copy("recommendations"))
+    }
+}
+
+private struct BeatrunTempoDetailsView: View {
+    let model: BeatrunModel
+    let copy: AppCopy
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                if let selectedMatch = model.nowPlayingMatch {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(selectedMatch.track.title)
+                            .font(.title2.bold())
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.78)
+                        Text("\(selectedMatch.track.artist) • \(selectedMatch.track.genre)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Text(selectedMatch.matchReason)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(18)
+                    .beatrunPanelSurface(tint: .blue)
+
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                        TempoMetricTile(title: "Target", value: "\(selectedMatch.adjustment.targetCadence)", unit: copy("spm"))
+                        TempoMetricTile(title: "Original", value: "\(selectedMatch.adjustment.originalBPM)", unit: "BPM")
+                        TempoMetricTile(title: "Adjusted", value: "\(selectedMatch.adjustment.adjustedBPM)", unit: "BPM")
+                        TempoMetricTile(title: "Speed", value: selectedMatch.adjustment.speedChangeLabel, unit: "")
+                        TempoMetricTile(title: "Score", value: "\(selectedMatch.score)", unit: "%")
+                        TempoMetricTile(title: copy("rights"), value: selectedMatch.track.rights.status.title, unit: "")
+                    }
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        SyncBar(match: selectedMatch)
+                        AlignmentDetails(match: selectedMatch)
+                        HStack {
+                            Label(selectedMatch.syncLabel, systemImage: "checkmark.seal.fill")
+                                .foregroundStyle(abs(selectedMatch.adjustment.speedChangePercent) <= 6 ? .green : .orange)
+                            Spacer()
+                            Text("Beat \(model.metronome.beatCount)")
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                        .font(.footnote.weight(.medium))
+                    }
+                    .padding(18)
+                    .beatrunPanelSurface(tint: .green)
+                } else {
+                    ContentUnavailableView(
+                        copy("no.legal.match"),
+                        systemImage: "music.note",
+                        description: Text(copy("beat.rules"))
+                    )
+                }
+            }
+            .padding(16)
+        }
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .navigationTitle(copy("match.details"))
+    }
+}
+
+private struct TempoMetricTile: View {
+    let title: String
+    let value: String
+    let unit: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text(value)
+                    .font(.headline.monospacedDigit())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.72)
+                if !unit.isEmpty {
+                    Text(unit)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .beatrunInsetSurface(tint: .blue)
     }
 }
 
@@ -728,6 +1026,7 @@ private struct DiscoveryStatusView: View {
     let sourceNote: String
     let tracksNeedingBPM: Int
     let metadataOnlyCount: Int
+    let copy: AppCopy
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -755,9 +1054,9 @@ private struct DiscoveryStatusView: View {
                 .minimumScaleFactor(0.8)
 
             HStack(spacing: 10) {
-                statusPill(title: "Source", value: sourceTitle)
-                statusPill(title: "Matches", value: "\(matchCount)")
-                statusPill(title: "Needs BPM", value: "\(tracksNeedingBPM)")
+                statusPill(title: copy("source"), value: sourceTitle)
+                statusPill(title: copy("matches"), value: "\(matchCount)")
+                statusPill(title: "BPM", value: "\(tracksNeedingBPM)")
             }
 
             Text("\(sourceNote) Metadata-only tracks: \(metadataOnlyCount). Searches: \(searchCount).")

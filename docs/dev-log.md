@@ -1,5 +1,47 @@
 # Beatrun Development Log
 
+## 2026-06-19 - Localization, Settings, and Home Hierarchy
+
+Completed:
+
+- Added `Shared/AppLocalization.swift` for shared iOS/watchOS English, Simplified Chinese, and Follow System language selection.
+- Added a debug launch override with `-BeatrunLanguage zh-Hans` or `-BeatrunLanguage en` for simulator screenshot verification.
+- Added iOS Settings with language, music library, cadence rules, Watch sync, HealthKit notes, rights, and about sections.
+- Refactored the iOS home screen to keep target cadence, music-library status, playback controls, queue status, and a short recommendation preview on the first screen.
+- Moved the full iOS recommendation list and tempo/sync/copyright details into dedicated navigation screens.
+- Added Watch NavigationStack, Watch Settings, and Watch Playback Details.
+- Refactored the Watch home screen to prioritize standalone workout controls, cadence, and compact playback state.
+
+Files changed:
+
+- `Shared/AppLocalization.swift`
+- `Beatrun/ContentView.swift`
+- `BeatrunWatch/WatchContentView.swift`
+- `Beatrun.xcodeproj/project.pbxproj`
+- `README.md`
+- `CHANGELOG.md`
+- `docs/dev-log.md`
+
+Verification:
+
+- iOS build succeeded with `/private/tmp/beatrun-localization-ios`.
+- watchOS build succeeded with `/private/tmp/beatrun-localization-watch`.
+- Captured simulator screenshots:
+  - `/private/tmp/beatrun-ios-home-zh.png`
+  - `/private/tmp/beatrun-ios-home-en.png`
+  - `/private/tmp/beatrun-ios-settings.png`
+  - `/private/tmp/beatrun-watch-home.png`
+  - `/private/tmp/beatrun-watch-settings.png`
+
+Remaining risk:
+
+- Dynamic track metadata, source titles, and lower-level model status strings retain their original source language.
+- Simulator screenshots cannot prove real HealthKit sensor metrics, real user-library contents, or physical WatchConnectivity reachability.
+
+Next step:
+
+- Validate language switching, HealthKit metrics, and Music Library scanning on physical iPhone and Apple Watch hardware.
+
 ## 2026-06-13 - Bundled CC0 Instrumental Audio
 
 Completed:
