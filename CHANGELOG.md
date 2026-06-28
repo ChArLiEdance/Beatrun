@@ -2,6 +2,20 @@
 
 All notable Beatrun uploads are recorded here.
 
+## 2026-06-28 - Settings Follow-up Polish
+
+### Added
+
+- Added persistent iOS default cadence control in Settings.
+- Added iOS local-preferences reset for language, default cadence, music type, and current cadence without deleting imported audio.
+- Added persistent Watch haptics toggle and wired local Watch control haptics through that setting.
+- Added English/Chinese copy for the new default cadence, reset, haptics, state, retiming, and needs-BPM labels.
+
+### Verified
+
+- Built iOS successfully with `xcodebuild -quiet -project Beatrun.xcodeproj -scheme Beatrun -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath /private/tmp/beatrun-continue-ios build`.
+- Built watchOS successfully with `xcodebuild -quiet -project Beatrun.xcodeproj -scheme BeatrunWatch -configuration Debug -destination 'generic/platform=watchOS Simulator' -derivedDataPath /private/tmp/beatrun-continue-watch build`.
+
 ## 2026-06-19 - Localization and Settings Screens
 
 ### Added

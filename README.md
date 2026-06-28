@@ -16,11 +16,11 @@ Current MVP scope: 1:1 BPM matching only. Beatrun does not use double-time or ha
 - Beat-boundary queue metadata with current/upcoming legal 1:1 matches.
 - MVP-level transition countdown/crossfade state while the metronome clock keeps running.
 - Polished iOS demo interface with a core home screen for target cadence, library state, playback controls, queue status, and a short recommendation preview.
-- iOS Settings with English/Chinese language switching, music-library summary, cadence rules, Watch sync status, HealthKit notes, and rights/source guidance.
+- iOS Settings with English/Chinese language switching, default cadence, local preference reset, music-library summary, cadence rules, Watch sync status, HealthKit notes, and rights/source guidance.
 - Dedicated iOS recommendation and tempo-detail screens for full track lists, sync grids, adjusted BPM, tempo shift, and rights/source status.
 - WatchConnectivity-based companion state path for cadence, playback, sync, queue, transition, and basic Watch controls.
 - watchOS standalone workout home UI with Start, Pause/Resume, End, target/current cadence, elapsed time, cadence +/-5 controls, and a compact playback status.
-- watchOS Settings and Playback Details screens for language, HealthKit status, iPhone sync state, HealthKit metrics, transition state, crossfade state, BPM, shift, and beat count.
+- watchOS Settings and Playback Details screens for language, Watch haptics, HealthKit status, iPhone sync state, HealthKit metrics, transition state, crossfade state, BPM, shift, and beat count.
 - HealthKit `HKWorkoutSession` / `HKLiveWorkoutBuilder` path with CoreMotion cadence fallback on Watch.
 - CHANGELOG and dev-log tracking for each upload phase.
 
@@ -107,7 +107,7 @@ The Watch app can open without the iPhone and enter standalone workout mode. It 
 - Start Workout, Pause/Resume, and End controls
 - Cadence +/-5 controls
 - Lightweight haptic feedback for local control taps
-- Settings for language, target cadence rules, workout authorization, and iPhone sync state
+- Settings for language, target cadence rules, haptics, workout authorization, and iPhone sync state
 - Playback Details for HealthKit metrics when available, current/next track, transition/crossfade status, beat count, adjusted BPM, and tempo shift
 
 Current WatchConnectivity scope:

@@ -7,6 +7,7 @@ private enum WatchRoute: Hashable {
 
 struct WatchContentView: View {
     @AppStorage("beatrun.language") private var languageRawValue = AppLanguage.followSystem.rawValue
+    @AppStorage("beatrun.watch.hapticsEnabled") private var hapticsEnabled = true
     @State private var state = WatchPlaybackState()
     @State private var workout = WatchWorkoutManager()
     @State private var path: [WatchRoute] = []
@@ -80,6 +81,7 @@ struct WatchContentView: View {
                 case .settings:
                     WatchSettingsView(
                         languageRawValue: $languageRawValue,
+                        hapticsEnabled: $hapticsEnabled,
                         state: state,
                         workout: workout,
                         copy: copy
@@ -90,7 +92,11 @@ struct WatchContentView: View {
         .environment(\.locale, appLocale)
         .containerBackground(.black, for: .navigation)
         .task {
+            state.setHapticsEnabled(hapticsEnabled)
             await runDebugLaunchHooks()
+        }
+        .onChange(of: hapticsEnabled) { _, isEnabled in
+            state.setHapticsEnabled(isEnabled)
         }
     }
 
@@ -322,6 +328,7 @@ private struct WatchPlaybackDetailsView: View {
 
 private struct WatchSettingsView: View {
     @Binding var languageRawValue: String
+    @Binding var hapticsEnabled: Bool
     let state: WatchPlaybackState
     let workout: WatchWorkoutManager
     let copy: AppCopy
@@ -347,8 +354,15 @@ private struct WatchSettingsView: View {
             }
 
             Section(copy("workout")) {
-                WatchMetric(title: "State", value: workout.state.title)
+                WatchMetric(title: copy("state"), value: workout.state.title)
                 Text(workout.authorizationStatus)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section(copy("haptics")) {
+                Toggle(copy("haptics"), isOn: $hapticsEnabled)
+                Text(copy("haptics.note"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }

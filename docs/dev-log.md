@@ -1,5 +1,37 @@
 # Beatrun Development Log
 
+## 2026-06-28 - Settings Follow-up Polish
+
+Completed:
+
+- Added persistent iOS default cadence setting backed by `@AppStorage`.
+- Added iOS local-preferences reset for language, default cadence, music type, and current cadence.
+- Kept reset scoped to preferences only; imported audio and bundled music files are not deleted.
+- Added persistent Watch haptics setting backed by `@AppStorage`.
+- Wired `WatchPlaybackState` haptic playback through the new haptics setting.
+- Added English/Chinese copy for default cadence, reset, haptics, state, retiming, and needs-BPM labels.
+
+Files changed:
+
+- `Shared/AppLocalization.swift`
+- `Beatrun/ContentView.swift`
+- `Beatrun/BeatrunModel.swift`
+- `BeatrunWatch/WatchContentView.swift`
+- `BeatrunWatch/WatchPlaybackState.swift`
+- `README.md`
+- `CHANGELOG.md`
+- `docs/dev-log.md`
+
+Verification:
+
+- iOS build succeeded with `/private/tmp/beatrun-continue-ios`.
+- watchOS build succeeded with `/private/tmp/beatrun-continue-watch`.
+
+Remaining risk:
+
+- Reset does not clear simulator permissions, MediaPlayer authorization, or user-imported audio files.
+- Watch haptics behavior still needs a physical Apple Watch for tactile validation.
+
 ## 2026-06-19 - Localization, Settings, and Home Hierarchy
 
 Completed:

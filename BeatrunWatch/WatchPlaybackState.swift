@@ -21,6 +21,7 @@ final class WatchPlaybackState {
     var rightsStatus = WatchSyncPayload.fallback.rightsStatus
     var connectionStatus = "Standalone Mode"
     var lastUpdated = WatchSyncPayload.fallback.updatedAt
+    var hapticsEnabled = true
 
     @ObservationIgnored private let connectivity = WatchConnectivityController()
 
@@ -102,6 +103,10 @@ final class WatchPlaybackState {
         connectivity.send(.cadenceDelta(delta))
     }
 
+    func setHapticsEnabled(_ isEnabled: Bool) {
+        hapticsEnabled = isEnabled
+    }
+
     private func apply(_ payload: WatchSyncPayload) {
         targetCadence = payload.targetCadence
         isPlaying = payload.isPlaying
@@ -130,6 +135,7 @@ final class WatchPlaybackState {
     }
 
     private func playHaptic() {
+        guard hapticsEnabled else { return }
         WKInterfaceDevice.current().play(.click)
     }
 }

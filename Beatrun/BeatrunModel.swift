@@ -106,6 +106,21 @@ final class BeatrunModel {
         )
     }
 
+    func resetLocalPreferences(cadence defaultCadence: Int = 180) {
+        scheduledDiscoveryTask?.cancel()
+        discoveryTask?.cancel()
+        scheduledDiscoveryTask = nil
+        cadence = min(max(defaultCadence, 140), 200)
+        vocalPreference = .instrumental
+        metronome.cadence = cadence
+        stopPlayback()
+        refreshRecommendations()
+        discoveryPhase = .ready
+        discoveryMessage = "Local preferences reset."
+        autoMatchMessage = "Best match updates when cadence, music type, or library access changes."
+        publishWatchState()
+    }
+
     func prepareMusicLibraryOnLaunch() {
         guard !didRunLaunchMusicLibraryFlow else { return }
         didRunLaunchMusicLibraryFlow = true

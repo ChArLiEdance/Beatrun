@@ -10,6 +10,7 @@ struct ContentView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("beatrun.language") private var languageRawValue = AppLanguage.followSystem.rawValue
+    @AppStorage("beatrun.defaultCadence") private var defaultCadence = 180
     @State private var model = BeatrunModel()
     @State private var showingSettings = false
 
@@ -107,6 +108,7 @@ struct ContentView: View {
             BeatrunSettingsView(
                 model: model,
                 languageRawValue: $languageRawValue,
+                defaultCadence: $defaultCadence,
                 copy: copy,
                 openAppSettings: openAppSettings
             )
@@ -117,6 +119,7 @@ struct ContentView: View {
             if let override = AppLanguage.debugOverride() {
                 languageRawValue = override.rawValue
             }
+            model.setCadence(defaultCadence)
             let simulateDeniedLibrary = CommandLine.arguments.contains("-BeatrunDemoDeniedLibrary")
             if simulateDeniedLibrary {
                 model.simulateDeniedMusicLibraryForDemo()
@@ -577,6 +580,7 @@ struct ContentView: View {
 private struct BeatrunSettingsView: View {
     let model: BeatrunModel
     @Binding var languageRawValue: String
+    @Binding var defaultCadence: Int
     let copy: AppCopy
     let openAppSettings: () -> Void
     @Environment(\.dismiss) private var dismiss
@@ -598,8 +602,8 @@ private struct BeatrunSettingsView: View {
                 Section(copy("library.summary")) {
                     LabeledContent(copy("library"), value: model.musicLibraryState.title)
                     LabeledContent(copy("scanned"), value: "\(model.scannedLibraryTrackCount)")
-                    LabeledContent("Retiming", value: "\(model.retimeReadyTrackCount)")
-                    LabeledContent("Needs BPM", value: "\(model.tracksNeedingBPMCount)")
+                    LabeledContent(copy("retiming"), value: "\(model.retimeReadyTrackCount)")
+                    LabeledContent(copy("needs.bpm"), value: "\(model.tracksNeedingBPMCount)")
                     Button {
                         if model.shouldOpenSettingsForMusicLibrary {
                             openAppSettings()
@@ -612,6 +616,13 @@ private struct BeatrunSettingsView: View {
                 }
 
                 Section(copy("cadence")) {
+                    Stepper(
+                        value: defaultCadenceSelection,
+                        in: 140...200,
+                        step: 1
+                    ) {
+                        LabeledContent(copy("cadence.default"), value: "\(defaultCadence) \(copy("spm"))")
+                    }
                     LabeledContent(copy("cadence.target"), value: "\(model.cadence) \(copy("spm"))")
                     Text(copy("beat.rules"))
                         .font(.caption)
@@ -645,6 +656,20 @@ private struct BeatrunSettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+
+                Section {
+                    Button(role: .destructive) {
+                        languageRawValue = AppLanguage.followSystem.rawValue
+                        defaultCadence = 180
+                        model.resetLocalPreferences()
+                    } label: {
+                        Label(copy("reset.preferences"), systemImage: "arrow.counterclockwise")
+                    }
+
+                    Text(copy("reset.preferences.note"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             .navigationTitle(copy("settings.title"))
             .toolbar {
@@ -661,6 +686,16 @@ private struct BeatrunSettingsView: View {
         Binding(
             get: { AppLanguage.preferred(from: languageRawValue) },
             set: { languageRawValue = $0.rawValue }
+        )
+    }
+
+    private var defaultCadenceSelection: Binding<Int> {
+        Binding(
+            get: { defaultCadence },
+            set: { newValue in
+                defaultCadence = newValue
+                model.setCadence(newValue)
+            }
         )
     }
 }
